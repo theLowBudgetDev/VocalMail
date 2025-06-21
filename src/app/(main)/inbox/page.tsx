@@ -283,6 +283,7 @@ export default function InboxPage() {
                           variant="outline" 
                           size="sm" 
                           onClick={() => handleUseSuggestion(suggestion)}
+                          className="h-auto whitespace-normal"
                         >
                           <span className="font-bold mr-2">{index + 1}.</span>{suggestion}
                         </Button>
