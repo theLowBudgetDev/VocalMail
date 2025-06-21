@@ -2,11 +2,15 @@
 
 import { useState, useRef, useCallback } from "react";
 import { textToSpeechConversion } from "@/ai/flows/text-to-voice-conversion";
+import { useToast } from "@/hooks/use-toast";
+
+const audioCache = new Map<string, string>();
 
 export const useTextToSpeech = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const { toast } = useToast();
 
   const play = useCallback(async (text: string, onEnd?: () => void) => {
     if (isGenerating || !text) {
@@ -14,17 +18,13 @@ export const useTextToSpeech = () => {
       return;
     };
 
-    setIsGenerating(true);
-    setIsPlaying(true);
-    try {
-      const { media } = await textToSpeechConversion({ text });
-      
+    const playAudio = (src: string) => {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.src = '';
       }
       
-      const newAudio = new Audio(media);
+      const newAudio = new Audio(src);
       audioRef.current = newAudio;
       
       newAudio.play().catch(e => {
@@ -43,15 +43,38 @@ export const useTextToSpeech = () => {
         audioRef.current = null;
         onEnd?.();
       }
+    }
 
-    } catch (error) {
+    if (audioCache.has(text)) {
+      setIsPlaying(true);
+      playAudio(audioCache.get(text)!);
+      return;
+    }
+
+    setIsGenerating(true);
+    setIsPlaying(true);
+    try {
+      const { media } = await textToSpeechConversion({ text });
+      
+      audioCache.set(text, media);
+      
+      playAudio(media);
+
+    } catch (error: any) {
       console.error("Text-to-speech conversion failed:", error);
+      if (error.message && error.message.includes("429")) {
+        toast({
+          variant: "destructive",
+          title: "Voice Generation Limit Reached",
+          description: "You've exceeded the daily quota for voice generation. Please try again later.",
+        });
+      }
       setIsPlaying(false);
       onEnd?.();
     } finally {
       setIsGenerating(false);
     }
-  }, [isGenerating]);
+  }, [isGenerating, toast]);
 
   const stop = useCallback(() => {
     if (audioRef.current) {
