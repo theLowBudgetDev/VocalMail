@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { emails as allEmails, type Email } from "@/lib/data";
 import { useTextToSpeech } from "@/hooks/use-text-to-speech";
+import { generateReplySuggestions } from "@/ai/flows/reply-suggestion-flow";
 import {
   Tooltip,
   TooltipContent,
@@ -23,26 +24,45 @@ export default function InboxPage() {
   const router = useRouter();
   const [inboxEmails, setInboxEmails] = React.useState(() => allEmails.filter((email) => email.tag === 'inbox'));
   const [selectedEmailId, setSelectedEmailId] = React.useState<string | null>(inboxEmails.length > 0 ? inboxEmails[0].id : null);
+  const [suggestions, setSuggestions] = React.useState<string[]>([]);
+  const [isGeneratingSuggestions, setIsGeneratingSuggestions] = React.useState(false);
+
 
   const selectedEmail = React.useMemo(() => {
     return inboxEmails.find((email) => email.id === selectedEmailId);
   }, [selectedEmailId, inboxEmails]);
 
   const { isPlaying, isGenerating, play, stop } = useTextToSpeech();
+  
+  const handleGenerateSuggestions = React.useCallback(async (emailBody: string) => {
+    if (!emailBody) return;
+    setIsGeneratingSuggestions(true);
+    setSuggestions([]);
+    try {
+      const { suggestions: generatedSuggestions } = await generateReplySuggestions({ emailBody });
+      setSuggestions(generatedSuggestions);
+    } catch (error) {
+      console.error("Failed to generate suggestions:", error);
+      // Not showing a toast to avoid interrupting the user flow
+    } finally {
+      setIsGeneratingSuggestions(false);
+    }
+  }, []);
 
   const handlePlayEmail = React.useCallback((emailToRead?: Email) => {
     if (emailToRead) {
       if (isPlaying) {
         stop();
       }
+      setSuggestions([]); // Clear previous suggestions
       // A short delay to allow any previous speech to stop gracefully
       setTimeout(() => {
         const textToRead = `Email from ${emailToRead.from.name}. Subject: ${emailToRead.subject}. Body: ${emailToRead.body}`;
-        play(textToRead);
+        play(textToRead, () => handleGenerateSuggestions(emailToRead.body));
         setSelectedEmailId(emailToRead.id);
       }, 100)
     }
-  }, [isPlaying, play, stop]);
+  }, [isPlaying, play, stop, handleGenerateSuggestions]);
 
   const handleReadList = React.useCallback(() => {
       if (isPlaying) {
@@ -67,6 +87,7 @@ export default function InboxPage() {
       const remainingEmails = inboxEmails.filter(e => e.id !== selectedEmailId);
       setInboxEmails(remainingEmails);
       setSelectedEmailId(remainingEmails.length > 0 ? remainingEmails[0].id : null);
+      setSuggestions([]);
       play("Email archived.");
     }
   }, [selectedEmailId, inboxEmails, play, stop]);
@@ -77,6 +98,7 @@ export default function InboxPage() {
        const remainingEmails = inboxEmails.filter(e => e.id !== selectedEmailId);
       setInboxEmails(remainingEmails);
       setSelectedEmailId(remainingEmails.length > 0 ? remainingEmails[0].id : null);
+      setSuggestions([]);
        play("Email deleted.");
     }
   }, [selectedEmailId, inboxEmails, play, stop]);
@@ -84,7 +106,7 @@ export default function InboxPage() {
   const handleReplyEmail = React.useCallback(() => {
     if (selectedEmail) {
       stop();
-      router.push('/compose');
+      router.push(`/compose?to=${encodeURIComponent(selectedEmail.from.email)}&subject=${encodeURIComponent(`Re: ${selectedEmail.subject}`)}`);
     }
   }, [selectedEmail, router, stop]);
 
@@ -144,7 +166,7 @@ export default function InboxPage() {
                       "p-4 cursor-pointer hover:bg-muted/50",
                       selectedEmailId === email.id && "bg-muted"
                     )}
-                    onClick={() => { stop(); setSelectedEmailId(email.id); }}
+                    onClick={() => { stop(); setSelectedEmailId(email.id); setSuggestions([]); }}
                   >
                     <div className="flex justify-between items-start">
                       <div className="font-semibold"><span className="text-muted-foreground text-xs mr-2">{index+1}.</span>{email.from.name}</div>
@@ -181,11 +203,11 @@ export default function InboxPage() {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button variant="ghost" size="icon" onClick={() => handlePlayEmail(selectedEmail)} disabled={isGenerating}>
-                          {isGenerating ? <Loader2 className="animate-spin" /> : isPlaying ? <StopCircle /> : <PlayCircle />}
+                          {isGenerating ? <Loader2 className="animate-spin" /> : (isPlaying && selectedEmail.id === selectedEmailId) ? <StopCircle /> : <PlayCircle />}
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>{isPlaying ? 'Stop Reading' : 'Read Aloud'}</p>
+                        <p>{(isPlaying && selectedEmail.id === selectedEmailId) ? 'Stop Reading' : 'Read Aloud'}</p>
                       </TooltipContent>
                     </Tooltip>
                     <Tooltip>
@@ -224,9 +246,40 @@ export default function InboxPage() {
                   From: {selectedEmail.from.name} &lt;{selectedEmail.from.email}&gt;
                 </div>
               </div>
-              <ScrollArea className="flex-1 p-4">
-                <p className="text-base leading-relaxed whitespace-pre-wrap">{selectedEmail.body}</p>
+              <ScrollArea className="flex-1">
+                <div className="p-4">
+                  <p className="text-base leading-relaxed whitespace-pre-wrap">{selectedEmail.body}</p>
+                </div>
               </ScrollArea>
+               {(isGeneratingSuggestions || suggestions.length > 0) && (
+                <div className="p-4 border-t">
+                  <h4 className="text-sm font-semibold mb-2 text-muted-foreground">Smart Replies</h4>
+                  {isGeneratingSuggestions ? (
+                     <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                        <Loader2 className="animate-spin h-4 w-4" />
+                        <span>Generating replies...</span>
+                      </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {suggestions.map((suggestion, index) => (
+                        <Button 
+                          key={index} 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => {
+                            if (!selectedEmail) return;
+                            const to = selectedEmail.from.email;
+                            const subject = `Re: ${selectedEmail.subject}`;
+                            router.push(`/compose?to=${encodeURIComponent(to)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(suggestion)}`);
+                          }}
+                        >
+                          {suggestion}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </Card>
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground">

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useSearchParams } from "next/navigation";
 import { Send, Loader2, Mic, Ear } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -39,6 +40,7 @@ export default function ComposePage() {
 
   const { toast } = useToast();
   const { play, stop: stopSpeech, isPlaying } = useTextToSpeech();
+  const searchParams = useSearchParams();
   
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
   const audioChunksRef = React.useRef<Blob[]>([]);
@@ -134,16 +136,41 @@ export default function ComposePage() {
     }
   }, [step, play, startListening]);
 
-  // Start the process on page load
+  // Handle pre-filled form and start process on load
   React.useEffect(() => {
-    play("New email.", () => setStep('recipient'));
+    const to = searchParams.get("to");
+    const subject = searchParams.get("subject");
+    const body = searchParams.get("body");
+
+    let isPreFilled = false;
+    if (to) {
+      setValue("to", to, { shouldValidate: true });
+      isPreFilled = true;
+    }
+    if (subject) {
+      setValue("subject", subject, { shouldValidate: true });
+      isPreFilled = true;
+    }
+    if (body) {
+      setValue("body", body, { shouldValidate: true });
+      isPreFilled = true;
+    }
+
+    if (isPreFilled) {
+      play("Email draft ready. You can make changes or say 'send email'.");
+      setStep('done');
+    } else {
+      play("New email.", () => setStep('recipient'));
+    }
+
     return () => { // Cleanup on unmount
       stopSpeech();
       if (mediaRecorderRef.current?.state === 'recording') {
         mediaRecorderRef.current.stop();
       }
     };
-  }, []);
+  }, [searchParams, setValue, play, stopSpeech]);
+
 
   const onSubmit = React.useCallback(async (data: z.infer<typeof emailSchema>) => {
     setIsSending(true);
