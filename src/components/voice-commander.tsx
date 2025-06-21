@@ -7,6 +7,7 @@ import { Mic, MicOff, Loader2 } from "lucide-react";
 import { recognizeCommand } from "@/ai/flows/command-recognition";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useTextToSpeech } from "@/hooks/use-text-to-speech";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -24,13 +25,19 @@ export function VoiceCommander() {
   const router = useRouter();
   const pathname = usePathname();
   const { toast } = useToast();
+  const { play } = useTextToSpeech();
 
-  const handleCommand = React.useCallback((command: string) => {
+  const isComposePage = pathname === '/compose';
+
+  const handleCommand = React.useCallback((command: string, emailId?: number) => {
     if (command.startsWith('navigate_')) {
       const page = command.replace('navigate_', '');
+      play(`Navigating to ${page}.`);
       router.push(`/${page}`);
     } else if (command.startsWith('action_')) {
-      window.dispatchEvent(new CustomEvent('voice-command', { detail: { command } }));
+      window.dispatchEvent(new CustomEvent('voice-command', { detail: { command, emailId } }));
+    } else if (command !== 'unknown') {
+      play("Sorry, I can't do that on this page.");
     } else {
       toast({
         variant: "default",
@@ -38,7 +45,7 @@ export function VoiceCommander() {
         description: "Please try a different voice command.",
       });
     }
-  }, [router, toast]);
+  }, [router, toast, play]);
 
   const handleStopListening = React.useCallback(async () => {
     setIsListening(false);
@@ -51,16 +58,21 @@ export function VoiceCommander() {
       mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
     }
 
+    if (audioBlob.size < 100) {
+      setIsProcessing(false);
+      return;
+    }
+
     const reader = new FileReader();
     reader.readAsDataURL(audioBlob);
     reader.onloadend = async () => {
       const base64Audio = reader.result as string;
       try {
-        const { command } = await recognizeCommand({
+        const result = await recognizeCommand({
           audioDataUri: base64Audio,
           currentPath: pathname,
         });
-        handleCommand(command);
+        handleCommand(result.command, result.emailId);
       } catch (error) {
         console.error("Command recognition failed:", error);
         toast({
@@ -83,7 +95,7 @@ export function VoiceCommander() {
   const startListening = React.useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream);
+      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
       mediaRecorderRef.current.ondataavailable = (event) => {
         audioChunksRef.current.push(event.data);
       };
@@ -102,24 +114,31 @@ export function VoiceCommander() {
   }, [handleStopListening, toast]);
 
   React.useEffect(() => {
-    let silenceTimeout: NodeJS.Timeout;
+    if (isComposePage && isGloballyActive) {
+      setIsGloballyActive(false);
+      if (isListening) {
+        stopListening();
+        setIsListening(false);
+        setIsProcessing(false);
+      }
+    }
+  }, [pathname, isComposePage, isGloballyActive, isListening, stopListening]);
 
+
+  React.useEffect(() => {
     if (isGloballyActive && !isListening && !isProcessing) {
-      startListening();
+      const listenTimeout = setTimeout(() => {
+        startListening();
+      }, 300); // Small delay to prevent immediate re-listening after processing
+      return () => clearTimeout(listenTimeout);
     }
-    
-    if (isListening) {
-      silenceTimeout = setTimeout(() => {
-        if(isListening) stopListening();
-      }, 5000); // Stop recording after 5 seconds
-    }
-
-    return () => {
-      clearTimeout(silenceTimeout);
-    };
-  }, [isGloballyActive, isListening, isProcessing, startListening, stopListening]);
+  }, [isGloballyActive, isListening, isProcessing, startListening]);
 
   const toggleGlobalListening = () => {
+    if (isComposePage) {
+      play("Voice commands are managed by the page here.");
+      return;
+    }
     setIsGloballyActive(prev => {
       const nextState = !prev;
       if (!nextState && isListening) {
@@ -134,7 +153,11 @@ export function VoiceCommander() {
     });
   };
 
-  const tooltipText = isGloballyActive ? "Voice commands enabled" : "Voice commands disabled";
+  const tooltipText = isGloballyActive ? "Voice commands enabled. Listening..." : "Voice commands disabled";
+
+  if (isComposePage) {
+      return null;
+  }
 
   return (
     <div className="fixed bottom-6 right-6 z-50">
@@ -146,8 +169,8 @@ export function VoiceCommander() {
               variant={isGloballyActive ? "default" : "secondary"}
               onClick={toggleGlobalListening}
               className={cn(
-                "rounded-full w-16 h-16 shadow-lg flex items-center justify-center",
-                isGloballyActive && "bg-primary text-primary-foreground",
+                "rounded-full w-16 h-16 shadow-lg flex items-center justify-center transition-all duration-300",
+                isGloballyActive && "bg-primary text-primary-foreground scale-110",
                 isListening && "animate-pulse"
               )}
               aria-label={tooltipText}

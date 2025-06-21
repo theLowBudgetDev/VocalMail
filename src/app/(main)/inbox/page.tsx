@@ -30,48 +30,77 @@ export default function InboxPage() {
 
   const { isPlaying, isGenerating, play, stop } = useTextToSpeech();
 
-  const handlePlayEmail = React.useCallback((email?: Email) => {
-    const emailToRead = email || selectedEmail;
+  const handlePlayEmail = React.useCallback((emailToRead?: Email) => {
     if (emailToRead) {
       if (isPlaying) {
         stop();
-      } else {
+      }
+      // A short delay to allow any previous speech to stop gracefully
+      setTimeout(() => {
         const textToRead = `Email from ${emailToRead.from.name}. Subject: ${emailToRead.subject}. Body: ${emailToRead.body}`;
         play(textToRead);
-      }
+        setSelectedEmailId(emailToRead.id);
+      }, 100)
     }
-  }, [isPlaying, play, stop, selectedEmail]);
+  }, [isPlaying, play, stop]);
+
+  const handleReadList = React.useCallback(() => {
+      if (isPlaying) {
+          stop();
+          return;
+      }
+      if (inboxEmails.length === 0) {
+          play("Your inbox is empty.");
+          return;
+      }
+      const emailSnippets = inboxEmails.map((email, index) => 
+        `Email ${index + 1}: From ${email.from.name}, Subject: ${email.subject}.`
+      ).join(' ');
+      const fullText = `You have ${inboxEmails.length} emails. ${emailSnippets} To read an email, say 'read email' followed by its number.`;
+      play(fullText);
+  }, [inboxEmails, isPlaying, play, stop]);
+
 
   const handleArchiveEmail = React.useCallback(() => {
     if (selectedEmailId) {
+      stop();
       const remainingEmails = inboxEmails.filter(e => e.id !== selectedEmailId);
       setInboxEmails(remainingEmails);
       setSelectedEmailId(remainingEmails.length > 0 ? remainingEmails[0].id : null);
+      play("Email archived.");
     }
-  }, [selectedEmailId, inboxEmails]);
+  }, [selectedEmailId, inboxEmails, play, stop]);
   
   const handleDeleteEmail = React.useCallback(() => {
     if (selectedEmailId) {
+       stop();
        const remainingEmails = inboxEmails.filter(e => e.id !== selectedEmailId);
       setInboxEmails(remainingEmails);
       setSelectedEmailId(remainingEmails.length > 0 ? remainingEmails[0].id : null);
+       play("Email deleted.");
     }
-  }, [selectedEmailId, inboxEmails]);
+  }, [selectedEmailId, inboxEmails, play, stop]);
 
   const handleReplyEmail = React.useCallback(() => {
     if (selectedEmail) {
-      // A more complete implementation would pre-fill the compose form
+      stop();
       router.push('/compose');
     }
-  }, [selectedEmail, router]);
-
+  }, [selectedEmail, router, stop]);
 
   React.useEffect(() => {
     const handleCommand = (event: CustomEvent) => {
-      const { command } = event.detail;
+      const { command, emailId } = event.detail;
       switch (command) {
-        case 'action_read':
-          handlePlayEmail();
+        case 'action_read_list':
+          handleReadList();
+          break;
+        case 'action_read_email':
+          if (emailId && emailId > 0 && emailId <= inboxEmails.length) {
+            handlePlayEmail(inboxEmails[emailId - 1]);
+          } else {
+            play(`Sorry, I couldn't find email number ${emailId}.`);
+          }
           break;
         case 'action_archive':
           handleArchiveEmail();
@@ -88,7 +117,7 @@ export default function InboxPage() {
     return () => {
       window.removeEventListener('voice-command', handleCommand as EventListener);
     };
-  }, [handlePlayEmail, handleArchiveEmail, handleDeleteEmail, handleReplyEmail]);
+  }, [handleReadList, handlePlayEmail, handleArchiveEmail, handleDeleteEmail, handleReplyEmail, inboxEmails, play]);
 
 
   React.useEffect(() => {
@@ -108,17 +137,17 @@ export default function InboxPage() {
             <Separator />
             {inboxEmails.length > 0 ? (
               <ul className="divide-y">
-                {inboxEmails.map((email) => (
+                {inboxEmails.map((email, index) => (
                   <li
                     key={email.id}
                     className={cn(
                       "p-4 cursor-pointer hover:bg-muted/50",
                       selectedEmailId === email.id && "bg-muted"
                     )}
-                    onClick={() => setSelectedEmailId(email.id)}
+                    onClick={() => { stop(); setSelectedEmailId(email.id); }}
                   >
                     <div className="flex justify-between items-start">
-                      <div className="font-semibold">{email.from.name}</div>
+                      <div className="font-semibold"><span className="text-muted-foreground text-xs mr-2">{index+1}.</span>{email.from.name}</div>
                       <div className="text-xs text-muted-foreground">
                         {formatDistanceToNow(new Date(email.date), {
                           addSuffix: true,
@@ -151,7 +180,7 @@ export default function InboxPage() {
                   <div className="flex items-center gap-2">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => handlePlayEmail()} disabled={isGenerating}>
+                        <Button variant="ghost" size="icon" onClick={() => handlePlayEmail(selectedEmail)} disabled={isGenerating}>
                           {isGenerating ? <Loader2 className="animate-spin" /> : isPlaying ? <StopCircle /> : <PlayCircle />}
                         </Button>
                       </TooltipTrigger>

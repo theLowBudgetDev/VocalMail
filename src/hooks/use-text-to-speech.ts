@@ -6,35 +6,48 @@ import { textToSpeechConversion } from "@/ai/flows/text-to-voice-conversion";
 export const useTextToSpeech = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [audioSrc, setAudioSrc] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const play = useCallback(async (text: string) => {
-    if (isGenerating) return;
+  const play = useCallback(async (text: string, onEnd?: () => void) => {
+    if (isGenerating || !text) {
+      onEnd?.();
+      return;
+    };
 
     setIsGenerating(true);
     setIsPlaying(true);
     try {
       const { media } = await textToSpeechConversion({ text });
-      setAudioSrc(media);
       
       if (audioRef.current) {
         audioRef.current.pause();
+        audioRef.current.src = '';
       }
       
       const newAudio = new Audio(media);
       audioRef.current = newAudio;
       
-      newAudio.play().catch(e => console.error("Audio play failed", e));
+      newAudio.play().catch(e => {
+        console.error("Audio play failed", e)
+        setIsPlaying(false);
+        onEnd?.();
+      });
       newAudio.onended = () => {
         setIsPlaying(false);
-        setAudioSrc(null);
         audioRef.current = null;
+        onEnd?.();
       };
+      newAudio.onerror = () => {
+        console.error("Error playing audio");
+        setIsPlaying(false);
+        audioRef.current = null;
+        onEnd?.();
+      }
 
     } catch (error) {
       console.error("Text-to-speech conversion failed:", error);
       setIsPlaying(false);
+      onEnd?.();
     } finally {
       setIsGenerating(false);
     }
@@ -43,12 +56,11 @@ export const useTextToSpeech = () => {
   const stop = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      setIsPlaying(false);
-      setAudioSrc(null);
+      audioRef.current.src = '';
       audioRef.current = null;
+      setIsPlaying(false);
     }
   }, []);
 
-  return { isPlaying, isGenerating, audioSrc, play, stop };
+  return { isPlaying, isGenerating, play, stop };
 };
