@@ -195,7 +195,7 @@ export default function InboxPage() {
                     <div className="text-sm">{email.subject}</div>
                     <div
                       className={cn(
-                        "text-xs text-muted-foreground truncate",
+                        "text-xs text-muted-foreground line-clamp-2",
                         !email.read && "font-bold text-foreground"
                       )}
                     >
