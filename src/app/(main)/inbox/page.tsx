@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { Archive, Trash2, Loader2, PlayCircle, StopCircle, CornerUpLeft } from "lucide-react";
 
@@ -8,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { emails, type Email } from "@/lib/data";
+import { emails as allEmails, type Email } from "@/lib/data";
 import { useTextToSpeech } from "@/hooks/use-text-to-speech";
 import {
   Tooltip,
@@ -19,23 +20,76 @@ import {
 import { Card } from "@/components/ui/card";
 
 export default function InboxPage() {
-  const [selectedEmailId, setSelectedEmailId] = React.useState<string | null>(emails.find(e => e.tag === 'inbox')?.id || null);
-  const inboxEmails = emails.filter((email) => email.tag === 'inbox');
+  const router = useRouter();
+  const [inboxEmails, setInboxEmails] = React.useState(() => allEmails.filter((email) => email.tag === 'inbox'));
+  const [selectedEmailId, setSelectedEmailId] = React.useState<string | null>(inboxEmails.length > 0 ? inboxEmails[0].id : null);
 
   const selectedEmail = React.useMemo(() => {
-    return emails.find((email) => email.id === selectedEmailId);
-  }, [selectedEmailId]);
+    return inboxEmails.find((email) => email.id === selectedEmailId);
+  }, [selectedEmailId, inboxEmails]);
 
   const { isPlaying, isGenerating, play, stop } = useTextToSpeech();
 
-  const handlePlayEmail = (email: Email) => {
-    if (isPlaying) {
-      stop();
-    } else {
-      const textToRead = `Email from ${email.from.name}. Subject: ${email.subject}. Body: ${email.body}`;
-      play(textToRead);
+  const handlePlayEmail = React.useCallback((email?: Email) => {
+    const emailToRead = email || selectedEmail;
+    if (emailToRead) {
+      if (isPlaying) {
+        stop();
+      } else {
+        const textToRead = `Email from ${emailToRead.from.name}. Subject: ${emailToRead.subject}. Body: ${emailToRead.body}`;
+        play(textToRead);
+      }
     }
-  };
+  }, [isPlaying, play, stop, selectedEmail]);
+
+  const handleArchiveEmail = React.useCallback(() => {
+    if (selectedEmailId) {
+      const remainingEmails = inboxEmails.filter(e => e.id !== selectedEmailId);
+      setInboxEmails(remainingEmails);
+      setSelectedEmailId(remainingEmails.length > 0 ? remainingEmails[0].id : null);
+    }
+  }, [selectedEmailId, inboxEmails]);
+  
+  const handleDeleteEmail = React.useCallback(() => {
+    if (selectedEmailId) {
+       const remainingEmails = inboxEmails.filter(e => e.id !== selectedEmailId);
+      setInboxEmails(remainingEmails);
+      setSelectedEmailId(remainingEmails.length > 0 ? remainingEmails[0].id : null);
+    }
+  }, [selectedEmailId, inboxEmails]);
+
+  const handleReplyEmail = React.useCallback(() => {
+    if (selectedEmail) {
+      // A more complete implementation would pre-fill the compose form
+      router.push('/compose');
+    }
+  }, [selectedEmail, router]);
+
+
+  React.useEffect(() => {
+    const handleCommand = (event: CustomEvent) => {
+      const { command } = event.detail;
+      switch (command) {
+        case 'action_read':
+          handlePlayEmail();
+          break;
+        case 'action_archive':
+          handleArchiveEmail();
+          break;
+        case 'action_delete':
+          handleDeleteEmail();
+          break;
+        case 'action_reply':
+          handleReplyEmail();
+          break;
+      }
+    };
+    window.addEventListener('voice-command', handleCommand as EventListener);
+    return () => {
+      window.removeEventListener('voice-command', handleCommand as EventListener);
+    };
+  }, [handlePlayEmail, handleArchiveEmail, handleDeleteEmail, handleReplyEmail]);
+
 
   React.useEffect(() => {
     return () => {
@@ -52,36 +106,40 @@ export default function InboxPage() {
               <h2 className="text-2xl font-bold">Inbox</h2>
             </div>
             <Separator />
-            <ul className="divide-y">
-              {inboxEmails.map((email) => (
-                <li
-                  key={email.id}
-                  className={cn(
-                    "p-4 cursor-pointer hover:bg-muted/50",
-                    selectedEmailId === email.id && "bg-muted"
-                  )}
-                  onClick={() => setSelectedEmailId(email.id)}
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="font-semibold">{email.from.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(email.date), {
-                        addSuffix: true,
-                      })}
-                    </div>
-                  </div>
-                  <div className="text-sm">{email.subject}</div>
-                  <div
+            {inboxEmails.length > 0 ? (
+              <ul className="divide-y">
+                {inboxEmails.map((email) => (
+                  <li
+                    key={email.id}
                     className={cn(
-                      "text-xs text-muted-foreground truncate",
-                      !email.read && "font-bold text-foreground"
+                      "p-4 cursor-pointer hover:bg-muted/50",
+                      selectedEmailId === email.id && "bg-muted"
                     )}
+                    onClick={() => setSelectedEmailId(email.id)}
                   >
-                    {email.body}
-                  </div>
-                </li>
-              ))}
-            </ul>
+                    <div className="flex justify-between items-start">
+                      <div className="font-semibold">{email.from.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(email.date), {
+                          addSuffix: true,
+                        })}
+                      </div>
+                    </div>
+                    <div className="text-sm">{email.subject}</div>
+                    <div
+                      className={cn(
+                        "text-xs text-muted-foreground truncate",
+                        !email.read && "font-bold text-foreground"
+                      )}
+                    >
+                      {email.body}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="text-center p-8 text-muted-foreground">No emails in inbox.</div>
+            )}
           </ScrollArea>
         </div>
         <div className="col-span-1 md:col-span-2 xl:col-span-3">
@@ -93,7 +151,7 @@ export default function InboxPage() {
                   <div className="flex items-center gap-2">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => handlePlayEmail(selectedEmail)} disabled={isGenerating}>
+                        <Button variant="ghost" size="icon" onClick={() => handlePlayEmail()} disabled={isGenerating}>
                           {isGenerating ? <Loader2 className="animate-spin" /> : isPlaying ? <StopCircle /> : <PlayCircle />}
                         </Button>
                       </TooltipTrigger>
@@ -103,7 +161,7 @@ export default function InboxPage() {
                     </Tooltip>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon">
+                        <Button variant="ghost" size="icon" onClick={handleReplyEmail}>
                           <CornerUpLeft />
                         </Button>
                       </TooltipTrigger>
@@ -113,7 +171,7 @@ export default function InboxPage() {
                     </Tooltip>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon">
+                        <Button variant="ghost" size="icon" onClick={handleArchiveEmail}>
                           <Archive />
                         </Button>
                       </TooltipTrigger>
@@ -123,7 +181,7 @@ export default function InboxPage() {
                     </Tooltip>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon">
+                        <Button variant="ghost" size="icon" onClick={handleDeleteEmail}>
                           <Trash2 />
                         </Button>
                       </TooltipTrigger>

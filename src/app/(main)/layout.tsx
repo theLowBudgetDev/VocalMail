@@ -24,6 +24,7 @@ import {
   SidebarInset,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { VoiceCommander } from "@/components/voice-commander";
 
 const navItems = [
   { href: "/inbox", label: "Inbox", icon: Inbox },
@@ -84,6 +85,7 @@ export default function VocalMailLayout({
         <div className="flex-1 overflow-auto bg-background">
             {children}
         </div>
+        <VoiceCommander />
       </SidebarInset>
     </SidebarProvider>
   );

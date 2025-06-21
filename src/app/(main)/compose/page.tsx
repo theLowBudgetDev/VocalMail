@@ -51,7 +51,7 @@ export default function ComposePage() {
     }
   };
   
-  const onSubmit = async (data: z.infer<typeof emailSchema>) => {
+  const onSubmit = React.useCallback(async (data: z.infer<typeof emailSchema>) => {
     setIsSending(true);
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 2000));
@@ -61,7 +61,21 @@ export default function ComposePage() {
       description: `Your email to ${data.to} has been sent successfully.`,
     });
     form.reset();
-  };
+  }, [form, toast]);
+
+  React.useEffect(() => {
+    const handleCommand = (event: CustomEvent) => {
+      const { command } = event.detail;
+      if (command === 'action_send') {
+        form.handleSubmit(onSubmit)();
+      }
+    };
+    window.addEventListener('voice-command', handleCommand as EventListener);
+    return () => {
+      window.removeEventListener('voice-command', handleCommand as EventListener);
+    };
+  }, [form, onSubmit]);
+
 
   return (
     <div className="p-4 md:p-6">
