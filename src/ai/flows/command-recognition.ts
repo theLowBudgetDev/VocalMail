@@ -33,12 +33,14 @@ const validCommands = [
     "action_delete",
     "action_archive",
     "action_send",
+    "action_use_suggestion",
     "unknown"
 ] as const;
 
 const RecognizeCommandOutputSchema = z.object({
   command: z.enum(validCommands).describe('The recognized command from the provided list.'),
   emailId: z.number().optional().describe('The 1-based index of the email to read, if applicable.'),
+  suggestionId: z.number().optional().describe('The 1-based index of the smart reply suggestion to use, if applicable.'),
 });
 export type RecognizeCommandOutput = z.infer<typeof RecognizeCommandOutputSchema>;
 
@@ -64,17 +66,18 @@ Available commands:
 - "navigate_compose": To go to the new email page. (e.g., "compose a new email", "new message")
 - "action_read_list": To read a summary of the emails in the current view. (Only in inbox). (e.g., "read my emails", "list messages")
 - "action_read_email": To read a specific email by its number. (Only in inbox). If the user says "read email one", "open message 3", extract the number and put it in the 'emailId' field. The ID is 1-based.
-- "action_reply": To reply to the currently selected email. (Only in inbox). (e.g., "reply")
+- "action_reply": To reply to the currently selected email (opens a blank reply). (Only in inbox). (e.g., "reply", "compose reply")
 - "action_delete": To delete the currently selected email. (Only in inbox). (e.g., "delete this")
 - "action_archive": To archive the currently selected email. (Only in inbox). (e.g., "archive this")
 - "action_send": To send the composed email. (Only on compose page). (e.g., "send email", "send it")
+- "action_use_suggestion": To use a numbered smart reply suggestion. (Only when viewing an email with suggestions). If the user says "reply one", "use suggestion 3", "select reply 2", extract the number and put it in the 'suggestionId' field. The ID is 1-based.
 - "unknown": If the command is not one of the above or is ambiguous.
 
-Transcribe the audio and determine the most appropriate command from the list.
+Transcribe the audio and determine the most appropriate command from the list. The word "reply" by itself should map to "action_reply". "Reply" followed by a number should map to "action_use_suggestion".
 
 Audio: {{media url=audioDataUri}}
 
-Your output must be a single command and, if applicable, the emailId.`,
+Your output must be a single command and, if applicable, the emailId or suggestionId.`,
 });
 
 const commandRecognitionFlow = ai.defineFlow(

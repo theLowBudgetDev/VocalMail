@@ -110,9 +110,18 @@ export default function InboxPage() {
     }
   }, [selectedEmail, router, stop]);
 
+  const handleUseSuggestion = React.useCallback((suggestion: string) => {
+    if (selectedEmail) {
+      stop();
+      play(`Replying with: ${suggestion}`);
+      router.push(`/compose?to=${encodeURIComponent(selectedEmail.from.email)}&subject=${encodeURIComponent(`Re: ${selectedEmail.subject}`)}&body=${encodeURIComponent(suggestion)}`);
+    }
+  }, [selectedEmail, router, stop, play]);
+
+
   React.useEffect(() => {
     const handleCommand = (event: CustomEvent) => {
-      const { command, emailId } = event.detail;
+      const { command, emailId, suggestionId } = event.detail;
       switch (command) {
         case 'action_read_list':
           handleReadList();
@@ -133,13 +142,20 @@ export default function InboxPage() {
         case 'action_reply':
           handleReplyEmail();
           break;
+        case 'action_use_suggestion':
+          if (suggestionId && suggestionId > 0 && suggestionId <= suggestions.length) {
+            handleUseSuggestion(suggestions[suggestionId - 1]);
+          } else if (suggestions.length > 0) {
+            play(`Sorry, I couldn't find suggestion number ${suggestionId}. Please say a number between 1 and ${suggestions.length}.`);
+          }
+          break;
       }
     };
     window.addEventListener('voice-command', handleCommand as EventListener);
     return () => {
       window.removeEventListener('voice-command', handleCommand as EventListener);
     };
-  }, [handleReadList, handlePlayEmail, handleArchiveEmail, handleDeleteEmail, handleReplyEmail, inboxEmails, play]);
+  }, [handleReadList, handlePlayEmail, handleArchiveEmail, handleDeleteEmail, handleReplyEmail, inboxEmails, play, suggestions, handleUseSuggestion]);
 
 
   React.useEffect(() => {
@@ -266,14 +282,9 @@ export default function InboxPage() {
                           key={index} 
                           variant="outline" 
                           size="sm" 
-                          onClick={() => {
-                            if (!selectedEmail) return;
-                            const to = selectedEmail.from.email;
-                            const subject = `Re: ${selectedEmail.subject}`;
-                            router.push(`/compose?to=${encodeURIComponent(to)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(suggestion)}`);
-                          }}
+                          onClick={() => handleUseSuggestion(suggestion)}
                         >
-                          {suggestion}
+                          <span className="font-bold mr-2">{index + 1}.</span>{suggestion}
                         </Button>
                       ))}
                     </div>
