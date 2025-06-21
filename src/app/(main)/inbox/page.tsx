@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
-import { Archive, Trash2, Loader2, PlayCircle, StopCircle, CornerUpLeft } from "lucide-react";
+import { Archive, Trash2, Loader2, PlayCircle, StopCircle, CornerUpLeft, ArrowLeft } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -19,14 +19,28 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { Card } from "@/components/ui/card";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function InboxPage() {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [inboxEmails, setInboxEmails] = React.useState(() => allEmails.filter((email) => email.tag === 'inbox'));
-  const [selectedEmailId, setSelectedEmailId] = React.useState<string | null>(inboxEmails.length > 0 ? inboxEmails[0].id : null);
+  const [selectedEmailId, setSelectedEmailId] = React.useState<string | null>(null);
   const [suggestions, setSuggestions] = React.useState<string[]>([]);
   const [isGeneratingSuggestions, setIsGeneratingSuggestions] = React.useState(false);
 
+  React.useEffect(() => {
+    if (isMobile === undefined) return;
+
+    if (isMobile) {
+      setSelectedEmailId(null);
+    } else {
+      if (!selectedEmailId && inboxEmails.length > 0) {
+        setSelectedEmailId(inboxEmails[0].id);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobile, inboxEmails]);
 
   const selectedEmail = React.useMemo(() => {
     return inboxEmails.find((email) => email.id === selectedEmailId);
@@ -86,22 +100,24 @@ export default function InboxPage() {
       stop();
       const remainingEmails = inboxEmails.filter(e => e.id !== selectedEmailId);
       setInboxEmails(remainingEmails);
-      setSelectedEmailId(remainingEmails.length > 0 ? remainingEmails[0].id : null);
+      const nextSelectedId = isMobile ? null : (remainingEmails.length > 0 ? remainingEmails[0].id : null);
+      setSelectedEmailId(nextSelectedId);
       setSuggestions([]);
       play("Email archived.");
     }
-  }, [selectedEmailId, inboxEmails, play, stop]);
+  }, [selectedEmailId, inboxEmails, play, stop, isMobile]);
   
   const handleDeleteEmail = React.useCallback(() => {
     if (selectedEmailId) {
        stop();
        const remainingEmails = inboxEmails.filter(e => e.id !== selectedEmailId);
       setInboxEmails(remainingEmails);
-      setSelectedEmailId(remainingEmails.length > 0 ? remainingEmails[0].id : null);
+      const nextSelectedId = isMobile ? null : (remainingEmails.length > 0 ? remainingEmails[0].id : null);
+      setSelectedEmailId(nextSelectedId);
       setSuggestions([]);
        play("Email deleted.");
     }
-  }, [selectedEmailId, inboxEmails, play, stop]);
+  }, [selectedEmailId, inboxEmails, play, stop, isMobile]);
 
   const handleReplyEmail = React.useCallback(() => {
     if (selectedEmail) {
@@ -167,7 +183,10 @@ export default function InboxPage() {
   return (
     <TooltipProvider>
       <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 h-[calc(100vh-4rem-1px)]">
-        <div className="col-span-1 xl:col-span-1 border-r bg-card h-full">
+        <div className={cn(
+            "col-span-1 xl:col-span-1 border-r bg-card h-full",
+            isMobile && selectedEmailId && "hidden"
+          )}>
           <ScrollArea className="h-full">
             <div className="p-4">
               <h2 className="text-2xl font-bold">Inbox</h2>
@@ -209,12 +228,27 @@ export default function InboxPage() {
             )}
           </ScrollArea>
         </div>
-        <div className="col-span-1 md:col-span-2 xl:col-span-3">
+        <div className={cn(
+            "md:col-span-2 xl:col-span-3",
+            isMobile && !selectedEmailId ? "hidden" : "block"
+          )}>
           {selectedEmail ? (
-            <Card className="m-4 shadow-lg h-[calc(100%-2rem)] flex flex-col">
+            <Card className="m-0 md:m-4 shadow-none md:shadow-lg h-full md:h-[calc(100%-2rem)] flex flex-col">
               <div className="p-4 border-b">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-bold">{selectedEmail.subject}</h3>
+                  <div className="flex items-center gap-1">
+                    {isMobile && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" onClick={() => { stop(); setSelectedEmailId(null); setSuggestions([]); }}>
+                            <ArrowLeft />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Back to Inbox</TooltipContent>
+                      </Tooltip>
+                    )}
+                    <h3 className="text-xl font-bold">{selectedEmail.subject}</h3>
+                  </div>
                   <div className="flex items-center gap-2">
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -294,7 +328,7 @@ export default function InboxPage() {
               )}
             </Card>
           ) : (
-            <div className="flex items-center justify-center h-full text-muted-foreground">
+            <div className={cn("flex items-center justify-center h-full text-muted-foreground", isMobile && "hidden")}>
               Select an email to read
             </div>
           )}
