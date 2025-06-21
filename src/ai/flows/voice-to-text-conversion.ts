@@ -1,6 +1,6 @@
 'use server';
 /**
- * @fileOverview Converts voice to text for email composition, refining accuracy based on user habits.
+ * @fileOverview Converts voice to text for email composition, with intelligent transcription and refinement.
  *
  * - voiceToTextConversion - A function that handles the voice to text conversion process.
  * - VoiceToTextConversionInput - The input type for the voiceToTextConversion function.
@@ -27,7 +27,7 @@ export type VoiceToTextConversionInput = z.infer<
 >;
 
 const VoiceToTextConversionOutputSchema = z.object({
-  transcription: z.string().describe('The transcribed text of the spoken message.'),
+  transcription: z.string().describe('The cleaned and transcribed text of the spoken message.'),
 });
 
 export type VoiceToTextConversionOutput = z.infer<
@@ -44,12 +44,20 @@ const prompt = ai.definePrompt({
   name: 'voiceToTextConversionPrompt',
   input: {schema: VoiceToTextConversionInputSchema},
   output: {schema: VoiceToTextConversionOutputSchema},
-  prompt: `Transcribe the following audio into text. Refine the accuracy of the transcription based on the user's speaking habits, if provided. 
+  prompt: `You are an AI assistant that transcribes and refines dictated text for an email. Your task is to convert the user's spoken words into a clean, well-formatted email body.
 
-Audio: {{media url=audioDataUri}}
-User Speaking Habits: {{{userSpeakingHabits}}}
+Instructions:
+1. Accurately transcribe the primary message.
+2. Remove any filler words (e.g., "um", "uh", "like", "you know").
+3. Correct grammatical errors and improve sentence structure for clarity and professionalism.
+4. Do not include any introductory or concluding remarks from yourself; output only the final, clean transcription.
 
-Transcription:`,
+Audio for Transcription: {{media url=audioDataUri}}
+{{#if userSpeakingHabits}}
+User Speaking Habits for context: {{{userSpeakingHabits}}}
+{{/if}}
+
+Cleaned Transcription:`,
 });
 
 const voiceToTextConversionFlow = ai.defineFlow(
