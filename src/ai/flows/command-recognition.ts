@@ -34,6 +34,7 @@ const validCommands = [
     "action_archive",
     "action_send",
     "action_use_suggestion",
+    "action_search_contact",
     "unknown"
 ] as const;
 
@@ -41,6 +42,7 @@ const RecognizeCommandOutputSchema = z.object({
   command: z.enum(validCommands).describe('The recognized command from the provided list.'),
   emailId: z.number().optional().describe('The 1-based index of the email to read, if applicable.'),
   suggestionId: z.number().optional().describe('The 1-based index of the smart reply suggestion to use, if applicable.'),
+  contactName: z.string().optional().describe("The name of the contact to search for."),
 });
 export type RecognizeCommandOutput = z.infer<typeof RecognizeCommandOutputSchema>;
 
@@ -71,13 +73,14 @@ Available commands:
 - "action_archive": To archive the currently selected email. (Only in inbox). (e.g., "archive this")
 - "action_send": To send the composed email. (Only on compose page). (e.g., "send email", "send it")
 - "action_use_suggestion": To use a numbered smart reply suggestion. (Only when viewing an email with suggestions). If the user says "reply one", "use suggestion 3", "select reply 2", extract the number and put it in the 'suggestionId' field. The ID is 1-based.
+- "action_search_contact": To search for a contact by name. (Only on contacts page). If the user says "find Alice", "look for Bob", "search for Charlie", extract the name and put it in the 'contactName' field.
 - "unknown": If the command is not one of the above or is ambiguous.
 
 Transcribe the audio and determine the most appropriate command from the list. The word "reply" by itself should map to "action_reply". "Reply" followed by a number should map to "action_use_suggestion".
 
 Audio: {{media url=audioDataUri}}
 
-Your output must be a single command and, if applicable, the emailId or suggestionId.`,
+Your output must be a single command and, if applicable, the emailId, suggestionId, or contactName.`,
 });
 
 const commandRecognitionFlow = ai.defineFlow(
