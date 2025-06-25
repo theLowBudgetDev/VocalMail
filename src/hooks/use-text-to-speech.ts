@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useCallback } from "react";
@@ -29,6 +30,12 @@ export const useTextToSpeech = () => {
       
       newAudio.play().catch(e => {
         console.error("Audio play failed", e)
+        // This often happens due to browser autoplay policies.
+        toast({
+          variant: "destructive",
+          title: "Audio Playback Failed",
+          description: "The browser prevented audio from playing automatically. Please interact with the page and try again.",
+        });
         setIsPlaying(false);
         onEnd?.();
       });
@@ -38,7 +45,13 @@ export const useTextToSpeech = () => {
         onEnd?.();
       };
       newAudio.onerror = () => {
-        console.error("Error playing audio");
+        console.error("Error playing audio: The audio source might be invalid or corrupted.");
+        // This can happen if the API returns bad data or there's a network issue.
+         toast({
+          variant: "destructive",
+          title: "Audio Playback Error",
+          description: "Could not play the generated voice. Please try again.",
+        });
         setIsPlaying(false);
         audioRef.current = null;
         onEnd?.();
@@ -67,6 +80,13 @@ export const useTextToSpeech = () => {
           variant: "destructive",
           title: "Voice Generation Limit Reached",
           description: "You've exceeded the daily quota for voice generation. Please try again later.",
+        });
+      } else {
+        // Generic error for other API failures
+        toast({
+          variant: "destructive",
+          title: "Voice Generation Failed",
+          description: "Could not generate audio for the requested text.",
         });
       }
       setIsPlaying(false);
