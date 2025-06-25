@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Search } from "lucide-react";
 import { emails as allEmails, type Email } from "@/lib/data";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -16,13 +17,20 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 function SearchResultsPage() {
+    const router = useRouter();
     const searchParams = useSearchParams();
-    const query = searchParams.get('q');
+    const query = searchParams.get('q') || '';
     
+    const [inputValue, setInputValue] = React.useState(query);
     const [selectedEmail, setSelectedEmail] = React.useState<Email | null>(null);
     const { play, stop } = useTextToSpeech();
+
+    React.useEffect(() => {
+        setInputValue(query);
+    }, [query]);
 
     const searchResults = React.useMemo(() => {
         if (!query) return [];
@@ -35,6 +43,11 @@ function SearchResultsPage() {
         );
     }, [query]);
 
+    const handleSearchSubmit = (event: React.FormEvent) => {
+        event.preventDefault();
+        router.push(`/search?q=${encodeURIComponent(inputValue)}`);
+    };
+
     const handleReadEmail = (email: Email) => {
         if (!email) return;
         stop();
@@ -46,7 +59,7 @@ function SearchResultsPage() {
     }
 
     React.useEffect(() => {
-        if (query) {
+        if (query && searchResults.length > 0) {
             play(`Showing ${searchResults.length} results for your search: ${query}.`);
         }
     }, [query, searchResults.length, play]);
@@ -57,7 +70,7 @@ function SearchResultsPage() {
             const { command, emailId } = event.detail;
 
             if (command === 'action_help') {
-                play("You are on the search results page. Say 'read email' and a number to hear an email. You can also use global navigation or search commands.");
+                play("You are on the search page. Use the text box to search or say 'search for' and your query. You can also say 'read email' and a number to hear an email.");
             } else if (command === 'action_read_email' && emailId > 0 && emailId <= searchResults.length) {
                 const emailToRead = searchResults[emailId - 1];
                 handleReadEmail(emailToRead);
@@ -81,10 +94,25 @@ function SearchResultsPage() {
       <div className="p-4 md:p-6">
         <Card>
             <CardHeader>
-                <CardTitle>Search Results</CardTitle>
-                {query && <CardDescription>Showing results for: "{query}"</CardDescription>}
+                <CardTitle>Search Mail</CardTitle>
+                 <CardDescription>
+                    Use the box below to search by sender, subject, or content, or use the global voice command.
+                </CardDescription>
+                <form onSubmit={handleSearchSubmit} className="flex w-full items-center space-x-2 pt-4">
+                    <Input 
+                        type="text" 
+                        placeholder="e.g., 'project update' or 'from:Alice'" 
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        className="max-w-lg"
+                    />
+                    <Button type="submit">
+                        <Search className="mr-2 h-4 w-4" /> Search
+                    </Button>
+                </form>
             </CardHeader>
             <CardContent>
+                {query && <h3 className="text-lg font-medium mb-4">Results for "{query}"</h3>}
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -110,7 +138,7 @@ function SearchResultsPage() {
                         {searchResults.length === 0 && (
                             <TableRow>
                                 <TableCell colSpan={5} className="text-center h-24">
-                                    {query ? `No results found for "${query}".` : "Use the global voice command 'search for emails about...' to start a search."}
+                                    {query ? `No results found for "${query}".` : "Start a search to see results here."}
                                 </TableCell>
                             </TableRow>
                         )}
