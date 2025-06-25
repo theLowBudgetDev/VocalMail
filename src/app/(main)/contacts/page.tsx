@@ -38,6 +38,9 @@ export default function ContactsPage() {
                 handleSearch(contactName);
                 play(`Showing results for ${contactName}.`);
             }
+            if (command === 'action_help') {
+                play("You are on the contacts page. Say 'find' and a name to search. You can also use global navigation commands like 'go to inbox'.");
+            }
         };
         window.addEventListener('voice-command', handleCommand as EventListener);
         return () => {

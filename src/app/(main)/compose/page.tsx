@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
-import { Send, Loader2, Mic, Ear } from "lucide-react";
+import { Send, Loader2, Mic, Ear, Square, FileText } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useTextToSpeech } from "@/hooks/use-text-to-speech";
 import { voiceToTextConversion } from "@/ai/flows/voice-to-text-conversion";
+import { recognizeCommand } from "@/ai/flows/command-recognition";
 import { cn } from "@/lib/utils";
 
 const emailSchema = z.object({
@@ -36,7 +37,7 @@ export default function ComposePage() {
   const [isSending, setIsSending] = React.useState(false);
   const [step, setStep] = React.useState<CompositionStep>(null);
   const [isListening, setIsListening] = React.useState(false);
-  const [isTranscribing, setIsTranscribing] = React.useState(false);
+  const [isProcessing, setIsProcessing] = React.useState(false); // Combined transcription and command recognition
 
   const { toast } = useToast();
   const { play, stop: stopSpeech, isPlaying } = useTextToSpeech();
@@ -49,7 +50,7 @@ export default function ComposePage() {
     resolver: zodResolver(emailSchema),
     defaultValues: { to: "", subject: "", body: "" },
   });
-  const { setValue, handleSubmit, reset, getValues } = form;
+  const { setValue, handleSubmit, reset, getValues, trigger } = form;
 
   const handleTranscription = (field: "to" | "subject" | "body", text: string) => {
     const sanitizedText = text.replace(/(\r\n|\n|\r)/gm, "").trim();
@@ -65,21 +66,23 @@ export default function ComposePage() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      audioChunksRef.current.push([]);
+      
       mediaRecorderRef.current.ondataavailable = (event) => audioChunksRef.current.push(event.data);
       
       mediaRecorderRef.current.onstop = async () => {
         setIsListening(false);
         if (!step) return;
     
-        setIsTranscribing(true);
+        setIsProcessing(true);
         const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         audioChunksRef.current = [];
     
         mediaRecorderRef.current?.stream?.getTracks().forEach(track => track.stop());
     
-        if (audioBlob.size < 100) { // Check for empty or very short recording
-          setIsTranscribing(false);
-          const prompts = { recipient: "I didn't catch that. Who is the recipient?", subject: "Sorry, what is the subject?", body: "I'm listening for the body of the email." };
+        if (audioBlob.size < 200) { // Increased threshold
+          setIsProcessing(false);
+          const prompts: Record<CompositionStep & string, string> = { recipient: "I didn't catch that. Who is the recipient?", subject: "Sorry, what is the subject?", body: "I'm listening for the body of the email." };
           play(prompts[step], () => startListening(step));
           return;
         }
@@ -89,52 +92,84 @@ export default function ComposePage() {
         reader.onloadend = async () => {
           const base64Audio = reader.result as string;
           try {
-            const { transcription } = await voiceToTextConversion({ audioDataUri: base64Audio });
-            handleTranscription(step, transcription);
+            const commandResult = await recognizeCommand({ audioDataUri: base64Audio, currentPath: '/compose' });
             
-            if (step === 'recipient') setStep('subject');
-            else if (step === 'subject') setStep('body');
-            else if (step === 'body') setStep('done');
-    
+            switch(commandResult.command) {
+              case 'action_send':
+                handleSubmit(onSubmit)();
+                break;
+              case 'action_proofread_email':
+                handleProofread();
+                break;
+              case 'action_help':
+                 play("You are composing an email. Speak to fill the current field. You can also say 'proofread email' to hear a draft, or 'send email' to send it.");
+                break;
+              case 'unknown':
+                // If command is unknown, assume it's dictation for the current field
+                const { transcription } = await voiceToTextConversion({ audioDataUri: base64Audio });
+                handleTranscription(step, transcription);
+                if (step === 'recipient') setStep('subject');
+                else if (step === 'subject') setStep('body');
+                // Don't auto-advance from body
+                break;
+              default:
+                // A valid command was received but not applicable to this page
+                 play(`Sorry, the command ${commandResult.command.replace(/_/g, ' ')} is not available here. Please dictate the content for the current field.`);
+                 startListening(step);
+            }
           } catch (error) {
-            console.error("Transcription failed:", error);
-            toast({ variant: "destructive", title: "Transcription Failed" });
-            play("Sorry, I had trouble understanding. Let's try that again.", () => startListening(step));
+            console.error("Processing failed:", error);
+            toast({ variant: "destructive", title: "Processing Failed", description: "I had trouble understanding. Let's try that again." });
+            startListening(step);
           } finally {
-            setIsTranscribing(false);
+            setIsProcessing(false);
+            if (step !== 'body' && step !== 'done') { // Keep listening for body
+                 startListening(step);
+            }
           }
         };
       };
 
       mediaRecorderRef.current.start();
       setIsListening(true);
-      setTimeout(() => {
-         if (mediaRecorderRef.current?.state === 'recording') {
-            mediaRecorderRef.current.stop();
-         }
-      }, 7000); // Record for up to 7 seconds
+      // Let user stop recording manually for body, but timeout for others
+      if(step === 'recipient' || step === 'subject') {
+        setTimeout(() => {
+           if (mediaRecorderRef.current?.state === 'recording') {
+              mediaRecorderRef.current.stop();
+           }
+        }, 5000); // Record for up to 5 seconds
+      }
     } catch (err) {
       console.error("Mic error:", err);
       toast({ variant: "destructive", title: "Microphone Access Denied" });
       setStep(null);
     }
-  }, [step, play, toast, handleTranscription]);
+  }, [step, play, toast, handleSubmit]);
+
+  const stopListening = React.useCallback(() => {
+    if (mediaRecorderRef.current?.state === "recording") {
+      mediaRecorderRef.current.stop();
+    }
+    setIsListening(false);
+  }, []);
+
   
   React.useEffect(() => {
     const prompts: Record<CompositionStep & string, string> = {
       recipient: "Who is the recipient?",
       subject: "What is the subject?",
-      body: "Please dictate the body of the email.",
-      done: "Email ready. You can make changes or say 'send email' using the global voice command."
+      body: "Please dictate the body of the email. Press the microphone button when you are finished.",
+      done: "Email ready. You can make changes, say 'proofread email', or say 'send email'."
     };
-    if (step && prompts[step]) {
+    if (step && prompts[step] && !isPlaying) {
       play(prompts[step], () => {
-          if (step !== 'done') {
+          if (step !== 'done' && step !== 'body') {
               startListening(step);
           }
       });
     }
-  }, [step, play, startListening]);
+  }, [step, play, startListening, isPlaying]);
 
   // Handle pre-filled form and start process on load
   React.useEffect(() => {
@@ -143,21 +178,14 @@ export default function ComposePage() {
     const body = searchParams.get("body");
 
     let isPreFilled = false;
-    if (to) {
-      setValue("to", to, { shouldValidate: true });
-      isPreFilled = true;
-    }
-    if (subject) {
-      setValue("subject", subject, { shouldValidate: true });
-      isPreFilled = true;
-    }
-    if (body) {
-      setValue("body", body, { shouldValidate: true });
-      isPreFilled = true;
-    }
+    if (to) { setValue("to", to); isPreFilled = true; }
+    if (subject) { setValue("subject", subject); isPreFilled = true; }
+    if (body) { setValue("body", body); isPreFilled = true; }
+
+    trigger(); // Validate pre-filled fields
 
     if (isPreFilled) {
-      play("Email draft ready. You can make changes or say 'send email'.");
+      play("Email draft ready. You can make changes, say 'proofread email' or say 'send email'.");
       setStep('done');
     } else {
       play("New email.", () => setStep('recipient'));
@@ -169,37 +197,56 @@ export default function ComposePage() {
         mediaRecorderRef.current.stop();
       }
     };
-  }, [searchParams, setValue, play, stopSpeech]);
+  }, []);
 
 
   const onSubmit = React.useCallback(async (data: z.infer<typeof emailSchema>) => {
     setIsSending(true);
+    play("Sending email...");
     await new Promise(resolve => setTimeout(resolve, 1500));
     setIsSending(false);
     toast({ title: "Email Sent!", description: `Email to ${data.to} sent.` });
-    play("Email sent successfully.", () => setStep(null));
-    reset();
+    play("Email sent successfully.");
+    reset({ to: "", subject: "", body: "" });
+    setStep(null);
   }, [reset, toast, play]);
+  
+  const handleProofread = React.useCallback(async () => {
+    stopSpeech();
+    const isValid = await trigger();
+    if (!isValid) {
+      play("There are some errors in the form. Please check the fields.");
+      return;
+    }
+    const { to, subject, body } = getValues();
+    const proofreadText = `This email is to: ${to}. The subject is: ${subject}. The body is: ${body || 'The body is empty.'} Would you like to send it?`;
+    play(proofreadText, () => {
+      // After proofreading, listen for the "send" command.
+      startListening('done');
+    });
+  }, [getValues, play, stopSpeech, trigger, startListening]);
 
-  React.useEffect(() => {
-    const handleCommand = (event: CustomEvent) => {
-      if (event.detail.command === 'action_send') handleSubmit(onSubmit)();
-    };
-    window.addEventListener('voice-command', handleCommand as EventListener);
-    return () => window.removeEventListener('voice-command', handleCommand as EventListener);
-  }, [handleSubmit, onSubmit]);
 
-  const isInteracting = isListening || isTranscribing || isPlaying;
-  const currentField: CompositionStep = isListening || isTranscribing ? step : null;
+  const isInteracting = isListening || isProcessing || isPlaying;
+  const currentField: CompositionStep = isListening || isProcessing ? step : null;
 
   const getFieldStatusIcon = (field: CompositionStep) => {
       if (currentField === field) {
           return isListening ? <Mic className="h-5 w-5 text-destructive animate-pulse" /> : <Loader2 className="h-5 w-5 animate-spin" />;
       }
       if (getValues(field as "to" | "subject" | "body")) {
-          return <Ear className="h-5 w-5 text-green-500" />;
+          return <FileText className="h-5 w-5 text-green-500" />;
       }
       return <Ear className="h-5 w-5 text-muted-foreground" />;
+  }
+  
+  const handleDictationButtonClick = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      setStep('body');
+      startListening('body');
+    }
   }
 
   return (
@@ -211,7 +258,7 @@ export default function ComposePage() {
             {isInteracting && (
                 <div className="flex items-center gap-2 text-sm px-3 py-1 rounded-full bg-muted text-muted-foreground">
                     {isListening && <><Mic className="h-4 w-4 animate-pulse" />Listening...</>}
-                    {isTranscribing && <><Loader2 className="h-4 w-4 animate-spin" />Processing...</>}
+                    {isProcessing && <><Loader2 className="h-4 w-4 animate-spin" />Processing...</>}
                     {isPlaying && <><Ear className="h-4 w-4" />Speaking...</>}
                 </div>
             )}
@@ -260,7 +307,7 @@ export default function ComposePage() {
                     <FormLabel>Body</FormLabel>
                     <div className="flex items-start gap-2">
                       <FormControl>
-                        <Textarea placeholder="Compose your email..." className={cn("min-h-[200px] resize-y", currentField === 'body' && 'border-primary ring-2 ring-primary')} {...field} />
+                        <Textarea placeholder="Dictate your email, or use the microphone button below..." className={cn("min-h-[200px] resize-y", currentField === 'body' && 'border-primary ring-2 ring-primary')} {...field} />
                       </FormControl>
                        {getFieldStatusIcon('body')}
                     </div>
@@ -268,13 +315,30 @@ export default function ComposePage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" disabled={isSending || isInteracting} size="lg" className="w-full sm:w-auto">
-                {isSending ? (
-                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending...</>
-                ) : (
-                  <><Send className="mr-2 h-4 w-4" />Send Email</>
-                )}
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-2 items-center">
+                <Button type="submit" disabled={isSending || isInteracting} size="lg" className="w-full sm:w-auto">
+                  {isSending ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending...</>
+                  ) : (
+                    <><Send className="mr-2 h-4 w-4" />Send Email</>
+                  )}
+                </Button>
+                 <Button type="button" variant="outline" onClick={handleProofread} disabled={isInteracting} size="lg" className="w-full sm:w-auto">
+                    <FileText className="mr-2 h-4 w-4" />
+                    Proofread
+                </Button>
+                <div className="flex-1 flex justify-center sm:justify-end">
+                   <Button 
+                        type="button" 
+                        onClick={handleDictationButtonClick} 
+                        disabled={isProcessing || isPlaying}
+                        size="icon"
+                        className={cn("w-16 h-16 rounded-full transition-colors", isListening ? 'bg-destructive hover:bg-destructive/90' : 'bg-primary hover:bg-primary/90' )}
+                    >
+                       {isListening ? <Square className="h-7 w-7 fill-white" /> : <Mic className="h-7 w-7" />}
+                    </Button>
+                </div>
+              </div>
             </form>
           </Form>
         </CardContent>

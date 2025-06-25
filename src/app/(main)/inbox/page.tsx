@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
-import { Archive, Trash2, Loader2, PlayCircle, StopCircle, CornerUpLeft, ArrowLeft } from "lucide-react";
+import { Archive, Trash2, Loader2, PlayCircle, StopCircle, CornerUpLeft, ArrowLeft, FileText } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { emails as allEmails, type Email } from "@/lib/data";
 import { useTextToSpeech } from "@/hooks/use-text-to-speech";
 import { generateReplySuggestions } from "@/ai/flows/reply-suggestion-flow";
+import { summarizeEmail } from "@/ai/flows/summarize-email-flow";
 import {
   Tooltip,
   TooltipContent,
@@ -28,6 +29,7 @@ export default function InboxPage() {
   const [selectedEmailId, setSelectedEmailId] = React.useState<string | null>(null);
   const [suggestions, setSuggestions] = React.useState<string[]>([]);
   const [isGeneratingSuggestions, setIsGeneratingSuggestions] = React.useState(false);
+  const [isSummarizing, setIsSummarizing] = React.useState(false);
 
   React.useEffect(() => {
     if (isMobile === undefined) return;
@@ -62,6 +64,22 @@ export default function InboxPage() {
       setIsGeneratingSuggestions(false);
     }
   }, []);
+  
+  const handleSummarizeEmail = React.useCallback(async () => {
+    if (selectedEmail) {
+      stop();
+      setIsSummarizing(true);
+      try {
+        const { summary } = await summarizeEmail({ emailBody: selectedEmail.body });
+        play(summary);
+      } catch (error) {
+        console.error("Failed to summarize email:", error);
+        play("Sorry, I was unable to summarize this email.");
+      } finally {
+        setIsSummarizing(false);
+      }
+    }
+  }, [selectedEmail, play, stop]);
 
   const handlePlayEmail = React.useCallback((emailToRead?: Email) => {
     if (emailToRead) {
@@ -149,6 +167,9 @@ export default function InboxPage() {
             play(`Sorry, I couldn't find email number ${emailId}.`);
           }
           break;
+        case 'action_summarize_email':
+          handleSummarizeEmail();
+          break;
         case 'action_archive':
           handleArchiveEmail();
           break;
@@ -165,13 +186,16 @@ export default function InboxPage() {
             play(`Sorry, I couldn't find suggestion number ${suggestionId}. Please say a number between 1 and ${suggestions.length}.`);
           }
           break;
+        case 'action_help':
+          play("You are in your inbox. You can say 'read the list', 'read email' followed by a number, 'summarize email', or use navigation commands like 'go to compose'.");
+          break;
       }
     };
     window.addEventListener('voice-command', handleCommand as EventListener);
     return () => {
       window.removeEventListener('voice-command', handleCommand as EventListener);
     };
-  }, [handleReadList, handlePlayEmail, handleArchiveEmail, handleDeleteEmail, handleReplyEmail, inboxEmails, play, suggestions, handleUseSuggestion]);
+  }, [handleReadList, handlePlayEmail, handleArchiveEmail, handleDeleteEmail, handleReplyEmail, inboxEmails, play, suggestions, handleUseSuggestion, handleSummarizeEmail]);
 
 
   React.useEffect(() => {
@@ -252,12 +276,22 @@ export default function InboxPage() {
                   <div className="flex items-center gap-2">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => handlePlayEmail(selectedEmail)} disabled={isGenerating}>
+                        <Button variant="ghost" size="icon" onClick={() => handlePlayEmail(selectedEmail)} disabled={isGenerating || isSummarizing}>
                           {isGenerating ? <Loader2 className="animate-spin" /> : (isPlaying && selectedEmail.id === selectedEmailId) ? <StopCircle /> : <PlayCircle />}
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
                         <p>{(isPlaying && selectedEmail.id === selectedEmailId) ? 'Stop Reading' : 'Read Aloud'}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                     <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" onClick={handleSummarizeEmail} disabled={isSummarizing || isPlaying}>
+                          {isSummarizing ? <Loader2 className="animate-spin" /> : <FileText />}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Summarize</p>
                       </TooltipContent>
                     </Tooltip>
                     <Tooltip>

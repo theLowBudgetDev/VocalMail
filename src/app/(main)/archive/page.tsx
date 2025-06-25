@@ -1,10 +1,25 @@
+"use client";
+
+import * as React from "react";
 import { emails } from "@/lib/data";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
+import { useTextToSpeech } from "@/hooks/use-text-to-speech";
 
 export default function ArchivePage() {
     const archivedEmails = emails.filter((email) => email.tag === 'archive');
+    const { play } = useTextToSpeech();
+
+    React.useEffect(() => {
+        const handleCommand = (event: CustomEvent) => {
+            if (event.detail.command === 'action_help') {
+                play("You are viewing archived emails. You can navigate to other pages like inbox or compose using the global voice commands.");
+            }
+        };
+        window.addEventListener('voice-command', handleCommand as EventListener);
+        return () => window.removeEventListener('voice-command', handleCommand as EventListener);
+    }, [play]);
 
     return (
       <div className="p-4 md:p-6">
