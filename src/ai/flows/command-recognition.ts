@@ -36,6 +36,7 @@ const validCommands = [
     "action_send",
     "action_use_suggestion",
     "action_search_contact",
+    "action_email_contact",
     "action_proofread_email",
     "action_help",
     "unknown"
@@ -69,8 +70,8 @@ Available commands:
 - "navigate_archive": To go to the archive page. (e.g., "open archive")
 - "navigate_contacts": To go to the contacts page. (e.g., "show my contacts")
 - "navigate_compose": To go to the new email page. (e.g., "compose a new email", "new message")
-- "action_read_list": To read a summary of the emails in the current view. (Only in inbox). (e.g., "read my emails", "list messages")
-- "action_read_email": To read a specific email by its number. (Only in inbox). If the user says "read email one", "open message 3", extract the number and put it in the 'emailId' field. The ID is 1-based.
+- "action_read_list": To read a summary of the items in the current view (emails or contacts). (e.g., "read my emails", "list messages", "list contacts")
+- "action_read_email": To read a specific email by its number from the current list (inbox, sent, or archive). If the user says "read email one", "open message 3", extract the number and put it in the 'emailId' field. The ID is 1-based.
 - "action_summarize_email": To get a summary of the currently selected email. (Only in inbox). (e.g., "summarize this", "give me the summary")
 - "action_reply": To reply to the currently selected email (opens a blank reply). (Only in inbox). (e.g., "reply", "compose reply")
 - "action_delete": To delete the currently selected email. (Only in inbox). (e.g., "delete this")
@@ -78,6 +79,7 @@ Available commands:
 - "action_send": To send the composed email. (Only on compose page). (e.g., "send email", "send it")
 - "action_use_suggestion": To use a numbered smart reply suggestion. (Only when viewing an email with suggestions). If the user says "reply one", "use suggestion 3", "select reply 2", extract the number and put it in the 'suggestionId' field. The ID is 1-based.
 - "action_search_contact": To search for a contact by name. (Only on contacts page). If the user says "find Alice", "look for Bob", "search for Charlie", extract the name and put it in the 'contactName' field.
+- "action_email_contact": To start composing an email to a specific contact. (Only on contacts page). (e.g., "email Alice", "write to Bob"). Extract the name into the 'contactName' field.
 - "action_proofread_email": To have the current email draft read back to you. (Only on compose page). (e.g., "proofread my email", "read it back to me")
 - "action_help": For help with available commands. (e.g., "help", "what can I do here?")
 - "unknown": If the command is not one of the above, is ambiguous, or is general dictation. On the compose page, any text that isn't a specific command should be treated as 'unknown'.

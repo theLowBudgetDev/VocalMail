@@ -1,17 +1,19 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { contacts as allContacts } from "@/lib/data";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Search, X } from "lucide-react";
+import { PlusCircle, Search, X, Mail } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useTextToSpeech } from "@/hooks/use-text-to-speech";
 
 export default function ContactsPage() {
     const [searchQuery, setSearchQuery] = React.useState("");
     const { play } = useTextToSpeech();
+    const router = useRouter();
 
     const filteredContacts = React.useMemo(() => {
         if (!searchQuery) {
@@ -26,6 +28,11 @@ export default function ContactsPage() {
         setSearchQuery(query);
     };
 
+    const handleEmailContact = (email: string, name: string) => {
+        play(`Starting an email to ${name}.`);
+        router.push(`/compose?to=${encodeURIComponent(email)}`);
+    };
+
     const clearSearch = () => {
         setSearchQuery("");
         play("Search cleared.");
@@ -34,19 +41,41 @@ export default function ContactsPage() {
     React.useEffect(() => {
         const handleCommand = (event: CustomEvent) => {
             const { command, contactName } = event.detail;
-            if (command === 'action_search_contact' && contactName) {
-                handleSearch(contactName);
-                play(`Showing results for ${contactName}.`);
-            }
-            if (command === 'action_help') {
-                play("You are on the contacts page. Say 'find' and a name to search. You can also use global navigation commands like 'go to inbox'.");
+            switch(command) {
+                case 'action_search_contact':
+                    if (contactName) {
+                        handleSearch(contactName);
+                        play(`Showing results for ${contactName}.`);
+                    }
+                    break;
+                case 'action_read_list':
+                    const contactNames = filteredContacts.map(c => c.name).join(', ');
+                    if (filteredContacts.length > 0) {
+                        play(`Showing ${filteredContacts.length} contacts: ${contactNames}.`);
+                    } else {
+                        play('There are no contacts to show.');
+                    }
+                    break;
+                case 'action_email_contact':
+                     if (contactName) {
+                        const targetContact = allContacts.find(c => c.name.toLowerCase() === contactName.toLowerCase());
+                        if (targetContact) {
+                           handleEmailContact(targetContact.email, targetContact.name);
+                        } else {
+                            play(`Sorry, I could not find a contact named ${contactName}.`);
+                        }
+                    }
+                    break;
+                case 'action_help':
+                    play("You are on the contacts page. Say 'find' and a name to search. Say 'list contacts' to hear the current list. Say 'email' and a name to start a new message.");
+                    break;
             }
         };
         window.addEventListener('voice-command', handleCommand as EventListener);
         return () => {
             window.removeEventListener('voice-command', handleCommand as EventListener);
         };
-    }, [play]);
+    }, [play, filteredContacts, router]);
 
     return (
       <div className="p-4 md:p-6">
@@ -82,12 +111,20 @@ export default function ContactsPage() {
             <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {filteredContacts.map((contact) => (
-                        <Card key={contact.id} className="p-4 flex flex-col items-center text-center shadow-md hover:shadow-lg transition-shadow">
+                        <Card key={contact.id} className="p-4 flex flex-col items-center text-center shadow-md hover:shadow-lg transition-shadow relative group">
                             <Avatar className="h-20 w-20 mb-4">
                                 <AvatarFallback className="text-3xl bg-primary text-primary-foreground">{contact.avatar}</AvatarFallback>
                             </Avatar>
                             <p className="font-semibold text-lg">{contact.name}</p>
                             <p className="text-sm text-muted-foreground">{contact.email}</p>
+                             <Button 
+                                variant="outline" 
+                                size="icon" 
+                                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => handleEmailContact(contact.email, contact.name)}
+                            >
+                                <Mail className="h-4 w-4" />
+                            </Button>
                         </Card>
                     ))}
                      {filteredContacts.length === 0 && (
