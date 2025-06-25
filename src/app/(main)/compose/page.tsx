@@ -62,6 +62,37 @@ export default function ComposePage() {
     }
   };
 
+  const onSubmit = React.useCallback(async (data: z.infer<typeof emailSchema>) => {
+    setIsSending(true);
+    play("Sending email...");
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    setIsSending(false);
+    toast({ title: "Email Sent!", description: `Email to ${data.to} sent.` });
+    play("Email sent successfully.");
+    reset({ to: "", subject: "", body: "" });
+    setStep(null);
+  }, [reset, toast, play]);
+
+  // Functions are defined before they are used in other callbacks to avoid initialization errors.
+  const handleProofread = React.useCallback(async () => {
+    stopSpeech();
+    const isValid = await trigger();
+    if (!isValid) {
+      play("There are some errors in the form. Please check the fields.");
+      return;
+    }
+    const { to, subject, body } = getValues();
+    const proofreadText = `This email is to: ${to}. The subject is: ${subject}. The body is: ${body || 'The body is empty.'} Would you like to send it?`;
+    play(proofreadText, () => {
+      // After proofreading, listen for the "send" command.
+      // We are deliberately not including startListening in the dependency array
+      // to break the circular dependency between handleProofread and startListening.
+      // This is safe because startListening will be defined by the time this callback runs.
+      startListening('done');
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getValues, play, stopSpeech, trigger]);
+
   const startListening = React.useCallback(async (currentStep: CompositionStep) => {
     if (!currentStep || currentStep === 'done') return;
     try {
@@ -146,7 +177,7 @@ export default function ComposePage() {
       toast({ variant: "destructive", title: "Microphone Access Denied" });
       setStep(null);
     }
-  }, [step, play, toast, handleSubmit, getValues, setValue, handleProofread]);
+  }, [step, play, toast, handleSubmit, getValues, setValue, handleProofread, onSubmit]);
 
   const stopListening = React.useCallback(() => {
     if (mediaRecorderRef.current?.state === "recording") {
@@ -197,34 +228,6 @@ export default function ComposePage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-
-  const onSubmit = React.useCallback(async (data: z.infer<typeof emailSchema>) => {
-    setIsSending(true);
-    play("Sending email...");
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setIsSending(false);
-    toast({ title: "Email Sent!", description: `Email to ${data.to} sent.` });
-    play("Email sent successfully.");
-    reset({ to: "", subject: "", body: "" });
-    setStep(null);
-  }, [reset, toast, play]);
-  
-  const handleProofread = React.useCallback(async () => {
-    stopSpeech();
-    const isValid = await trigger();
-    if (!isValid) {
-      play("There are some errors in the form. Please check the fields.");
-      return;
-    }
-    const { to, subject, body } = getValues();
-    const proofreadText = `This email is to: ${to}. The subject is: ${subject}. The body is: ${body || 'The body is empty.'} Would you like to send it?`;
-    play(proofreadText, () => {
-      // After proofreading, listen for the "send" command.
-      startListening('done');
-    });
-  }, [getValues, play, stopSpeech, trigger, startListening]);
-
 
   const isInteracting = isListening || isProcessing || isPlaying;
   const currentField: CompositionStep = isListening || isProcessing ? step : null;
