@@ -23,6 +23,7 @@ export type Contact = {
 }
 
 export const emails: Email[] = [
+  // Existing emails
   {
     id: '1',
     from: { name: 'Alice', email: 'alice@example.com' },
@@ -78,14 +79,106 @@ export const emails: Email[] = [
     read: true,
     tag: 'archive',
   },
+
+  // New emails for testing
+  {
+    id: '7',
+    from: { name: 'Frank', email: 'frank@example.com' },
+    subject: 'Weekly Report',
+    body: 'Please find the weekly report attached. The key highlight this week is the 20% increase in user engagement. We should discuss this in our next sync.',
+    date: '2024-05-17T18:00:00Z',
+    read: false,
+    tag: 'inbox',
+  },
+  {
+    id: '8',
+    from: { name: 'Me', email: 'me@vocalmail.com' },
+    to: { name: 'Bob', email: 'bob@example.com'},
+    subject: 'Re: Lunch tomorrow?',
+    body: 'Hi Bob, I\'m free tomorrow! That Italian place sounds great. What time works for you?',
+    date: '2024-05-20T09:45:00Z',
+    read: true,
+    tag: 'sent',
+  },
+  {
+    id: '9',
+    from: { name: 'Grace', email: 'grace@example.com' },
+    subject: 'Confirmation: Your subscription has been renewed',
+    body: 'This email is to confirm that your subscription to Pro Services has been successfully renewed. No action is required from your side.',
+    date: '2024-05-16T11:00:00Z',
+    read: true,
+    tag: 'archive',
+  },
+  {
+    id: '10',
+    from: { name: 'Henry', email: 'henry@example.com' },
+    subject: 'Quick question about the Q3 budget',
+    body: 'Hi, I was reviewing the Q3 budget and had a quick question about the marketing spend allocation. Do you have a moment to chat this afternoon? Thanks, Henry.',
+    date: '2024-05-20T11:00:00Z',
+    read: false,
+    tag: 'inbox',
+  },
+  {
+    id: '11',
+    from: { name: 'Ivy', email: 'ivy@example.com' },
+    subject: 'Your flight check-in is now open',
+    body: 'Check-in for your flight VA243 to San Francisco is now open. Please check in online to save time at the airport.',
+    date: '2024-05-15T12:00:00Z',
+    read: true,
+    tag: 'archive',
+  },
+  {
+    id: '12',
+    from: { name: 'Me', email: 'me@vocalmail.com' },
+    to: { name: 'Jack', email: 'jack@example.com'},
+    subject: 'Follow up on our call',
+    body: 'Hi Jack, it was great chatting with you earlier. As discussed, I\'m sending over the proposal for your review. Please let me know if you have any feedback.',
+    date: '2024-05-17T16:20:00Z',
+    read: true,
+    tag: 'sent',
+  },
+   {
+    id: '13',
+    from: { name: 'Alice', email: 'alice@example.com' },
+    subject: 'Brainstorming Session',
+    body: 'Hi all, I\'ve scheduled a brainstorming session for the new feature tomorrow at 2 PM. Please come prepared with your ideas.',
+    date: '2024-05-20T14:00:00Z',
+    read: false,
+    tag: 'inbox',
+  },
+  {
+    id: '14',
+    from: { name: 'System Alert', email: 'no-reply@system.com' },
+    subject: 'Security Alert: New device login',
+    body: 'A new device has logged into your account. If this was you, you can safely ignore this email. If not, please change your password immediately.',
+    date: '2024-05-14T08:00:00Z',
+    read: true,
+    tag: 'archive',
+  },
+  {
+    id: '15',
+    from: { name: 'Jack', email: 'jack@example.com' },
+    subject: 'Re: Follow up on our call',
+    body: 'Thanks for sending this over so quickly. The proposal looks great. I have a few minor comments which I have added to the document. Let\'s connect next week to finalize.',
+    date: '2024-05-18T10:00:00Z',
+    read: false,
+    tag: 'inbox',
+  },
 ];
 
 export const contacts: Contact[] = [
+    // Existing contacts
     { id: '1', name: 'Alice', email: 'alice@example.com', avatar: 'A' },
     { id: '2', name: 'Bob', email: 'bob@example.com', avatar: 'B' },
     { id: '3', name: 'Charlie', email: 'charlie@example.com', avatar: 'C' },
     { id: '4', name: 'Diana', email: 'diana@example.com', avatar: 'D' },
     { id: '5', name: 'Eve', email: 'eve@example.com', avatar: 'E' },
+    // New contacts for testing
+    { id: '6', name: 'Frank', email: 'frank@example.com', avatar: 'F' },
+    { id: '7', name: 'Grace', email: 'grace@example.com', avatar: 'G' },
+    { id: '8', name: 'Henry', email: 'henry@example.com', avatar: 'H' },
+    { id: '9', name: 'Ivy', email: 'ivy@example.com', avatar: 'I' },
+    { id: '10', name: 'Jack', email: 'jack@example.com', avatar: 'J' },
 ];
 
 export function getEmailById(id: string): Email | undefined {
