@@ -2,27 +2,42 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { contacts as allContacts } from "@/lib/data";
+import { contacts as initialContacts, type Contact } from "@/lib/data";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Search, X, Mail } from "lucide-react";
+import { PlusCircle, Search, X, Mail, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useTextToSpeech } from "@/hooks/use-text-to-speech";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 export default function ContactsPage() {
+    const [contacts, setContacts] = React.useState<Contact[]>(initialContacts);
     const [searchQuery, setSearchQuery] = React.useState("");
+    const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
+    const [newContactName, setNewContactName] = React.useState("");
+    const [newContactEmail, setNewContactEmail] = React.useState("");
+
     const { play } = useTextToSpeech();
     const router = useRouter();
 
     const filteredContacts = React.useMemo(() => {
         if (!searchQuery) {
-            return allContacts;
+            return contacts;
         }
-        return allContacts.filter((contact) =>
+        return contacts.filter((contact) =>
             contact.name.toLowerCase().includes(searchQuery.toLowerCase())
         );
-    }, [searchQuery]);
+    }, [searchQuery, contacts]);
 
     const handleSearch = (query: string) => {
         setSearchQuery(query);
@@ -36,6 +51,34 @@ export default function ContactsPage() {
     const clearSearch = () => {
         setSearchQuery("");
         play("Search cleared.");
+    };
+
+    const handleAddContact = () => {
+        if (!newContactName || !newContactEmail) {
+            play("Please fill out both name and email.");
+            return;
+        }
+        const newContact: Contact = {
+            id: Date.now().toString(),
+            name: newContactName,
+            email: newContactEmail,
+            avatar: newContactName.charAt(0).toUpperCase(),
+        };
+        setContacts(prev => [...prev, newContact]);
+        play(`Contact ${newContactName} added.`);
+        setIsAddDialogOpen(false);
+        setNewContactName("");
+        setNewContactEmail("");
+    };
+
+    const handleDeleteContact = (name: string) => {
+        const contactExists = contacts.some(c => c.name.toLowerCase() === name.toLowerCase());
+        if (contactExists) {
+            setContacts(prev => prev.filter(c => c.name.toLowerCase() !== name.toLowerCase()));
+            play(`Contact ${name} deleted.`);
+        } else {
+            play(`Sorry, I could not find a contact named ${name}.`);
+        }
     };
     
     React.useEffect(() => {
@@ -58,7 +101,7 @@ export default function ContactsPage() {
                     break;
                 case 'action_email_contact':
                      if (contactName) {
-                        const targetContact = allContacts.find(c => c.name.toLowerCase() === contactName.toLowerCase());
+                        const targetContact = contacts.find(c => c.name.toLowerCase() === contactName.toLowerCase());
                         if (targetContact) {
                            handleEmailContact(targetContact.email, targetContact.name);
                         } else {
@@ -66,8 +109,19 @@ export default function ContactsPage() {
                         }
                     }
                     break;
+                case 'action_add_contact':
+                    play("Opening the add contact dialog.");
+                    setIsAddDialogOpen(true);
+                    break;
+                case 'action_delete_contact':
+                    if (contactName) {
+                        handleDeleteContact(contactName);
+                    } else {
+                        play("Please specify which contact to delete.");
+                    }
+                    break;
                 case 'action_help':
-                    play("You are on the contacts page. Say 'find' and a name to search. Say 'list contacts' to hear the current list. Say 'email' and a name to start a new message.");
+                    play("You are on the contacts page. You can say: 'find' and a name to search, 'list contacts', 'email' and a name, 'add contact', or 'delete' and a name.");
                     break;
             }
         };
@@ -75,7 +129,7 @@ export default function ContactsPage() {
         return () => {
             window.removeEventListener('voice-command', handleCommand as EventListener);
         };
-    }, [play, filteredContacts, router]);
+    }, [play, filteredContacts, router, contacts]);
 
     return (
       <div className="p-4 md:p-6">
@@ -102,7 +156,7 @@ export default function ContactsPage() {
                             </Button>
                         )}
                     </div>
-                    <Button>
+                    <Button onClick={() => setIsAddDialogOpen(true)}>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Add
                     </Button>
@@ -135,6 +189,32 @@ export default function ContactsPage() {
                 </div>
             </CardContent>
         </Card>
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Add New Contact</DialogTitle>
+                    <DialogDescription>
+                        Enter the details for your new contact here.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="name" className="text-right">Name</Label>
+                        <Input id="name" value={newContactName} onChange={(e) => setNewContactName(e.target.value)} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="email" className="text-right">Email</Label>
+                        <Input id="email" type="email" value={newContactEmail} onChange={(e) => setNewContactEmail(e.target.value)} className="col-span-3" />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild>
+                         <Button variant="outline">Cancel</Button>
+                    </DialogClose>
+                    <Button onClick={handleAddContact}>Save contact</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
       </div>
     );
 }

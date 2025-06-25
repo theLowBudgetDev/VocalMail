@@ -10,6 +10,7 @@ import {
   Send,
   FilePenLine,
   Mail,
+  Search,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ const navItems = [
   { href: "/sent", label: "Sent", icon: Send },
   { href: "/archive", label: "Archive", icon: Archive },
   { href: "/contacts", label: "Contacts", icon: Contact },
+  { href: "/search", label: "Search", icon: Search },
 ];
 
 export default function VocalMailLayout({

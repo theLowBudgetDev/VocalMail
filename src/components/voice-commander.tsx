@@ -29,13 +29,17 @@ export function VoiceCommander() {
 
   const isComposePage = pathname === '/compose';
 
-  const handleCommand = React.useCallback((command: string, emailId?: number) => {
+  const handleCommand = React.useCallback((result: Awaited<ReturnType<typeof recognizeCommand>>) => {
+    const { command, emailId, searchQuery } = result;
     if (command.startsWith('navigate_')) {
       const page = command.replace('navigate_', '');
       play(`Navigating to ${page}.`);
       router.push(`/${page}`);
+    } else if (command === 'action_search_email' && searchQuery) {
+      play(`Searching for emails about ${searchQuery}`);
+      router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
     } else if (command.startsWith('action_')) {
-      window.dispatchEvent(new CustomEvent('voice-command', { detail: { command, emailId } }));
+      window.dispatchEvent(new CustomEvent('voice-command', { detail: result }));
     } else if (command !== 'unknown') {
       play("Sorry, I can't do that on this page.");
     } else {
@@ -72,7 +76,7 @@ export function VoiceCommander() {
           audioDataUri: base64Audio,
           currentPath: pathname,
         });
-        handleCommand(result.command, result.emailId);
+        handleCommand(result);
       } catch (error) {
         console.error("Command recognition failed:", error);
         toast({
