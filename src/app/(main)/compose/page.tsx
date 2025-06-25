@@ -25,6 +25,7 @@ import { useTextToSpeech } from "@/hooks/use-text-to-speech";
 import { voiceToTextConversion } from "@/ai/flows/voice-to-text-conversion";
 import { recognizeCommand } from "@/ai/flows/command-recognition";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const emailSchema = z.object({
   to: z.string().email({ message: "Invalid email address." }),
@@ -80,7 +81,6 @@ export default function ComposePage() {
     setIsListening(false);
   }, []);
   
-  // Functions are defined before they are used in other callbacks to avoid initialization errors.
   const handleProofread = React.useCallback(async () => {
     stopSpeech();
     const isValid = await trigger();
@@ -90,12 +90,9 @@ export default function ComposePage() {
     }
     const { to, subject, body } = getValues();
     const proofreadText = `This email is to: ${to}. The subject is: ${subject}. The body is: ${body || 'The body is empty.'} Would you like to send it?`;
-    play(proofreadText, () => {
-      // After proofreading, listen for the "send" command.
-      // This is a special case where we listen for a final command.
-    });
+    play(proofreadText);
   }, [getValues, play, stopSpeech, trigger]);
-
+  
   const startListening = React.useCallback(async (currentStep: CompositionStep) => {
     if (!currentStep || currentStep === 'done') return;
     try {
@@ -138,17 +135,15 @@ export default function ComposePage() {
                 break;
               case 'action_help':
                  play("You are composing an email. Use the mic to start. You can say 'proofread email' to hear a draft, or 'send email' to send it.");
+                 startListening(step);
                 break;
               case 'unknown':
-                // If command is unknown, assume it's dictation for the current field
                 const { transcription } = await voiceToTextConversion({ audioDataUri: base64Audio });
                 handleTranscription(step, transcription);
                 if (step === 'recipient') setStep('subject');
                 else if (step === 'subject') setStep('body');
-                // Don't auto-advance from body
                 break;
               default:
-                // A valid command was received but not applicable to this page
                  play(`Sorry, the command ${commandResult.command.replace(/_/g, ' ')} is not available here. Please dictate the content for the current field.`);
                  startListening(step);
             }
@@ -158,29 +153,25 @@ export default function ComposePage() {
             startListening(step);
           } finally {
             setIsProcessing(false);
-            if (step !== 'body' && step !== 'done') { // Keep listening for body
-                 startListening(step);
-            }
           }
         };
       };
 
       mediaRecorderRef.current.start();
       setIsListening(true);
-      // Let user stop recording manually for body, but timeout for others
       if(step === 'recipient' || step === 'subject') {
         setTimeout(() => {
            if (mediaRecorderRef.current?.state === 'recording') {
               mediaRecorderRef.current.stop();
            }
-        }, 5000); // Record for up to 5 seconds
+        }, 5000); 
       }
     } catch (err) {
       console.error("Mic error:", err);
       toast({ variant: "destructive", title: "Microphone Access Denied" });
       setStep(null);
     }
-  }, [step, play, toast, handleSubmit, getValues, setValue, handleProofread, onSubmit]);
+  }, [step, play, toast, handleSubmit, onSubmit, handleProofread]);
 
   React.useEffect(() => {
     const prompts: Record<CompositionStep & string, string> = {
@@ -198,7 +189,6 @@ export default function ComposePage() {
     }
   }, [step, play, startListening, isPlaying]);
 
-  // Handle pre-filled form on load, but don't start voice flow
   React.useEffect(() => {
     const to = searchParams.get("to");
     const subject = searchParams.get("subject");
@@ -210,12 +200,12 @@ export default function ComposePage() {
     if (body) { setValue("body", body); isPreFilled = true; }
 
     if (isPreFilled) {
-      trigger(); // Validate pre-filled fields
+      trigger(); 
       play("Email draft ready. You can make changes, say 'proofread email' or say 'send email'.");
       setStep('done');
     }
 
-    return () => { // Cleanup on unmount
+    return () => {
       stopSpeech();
       if (mediaRecorderRef.current?.state === 'recording') {
         mediaRecorderRef.current.stop();
@@ -225,25 +215,19 @@ export default function ComposePage() {
   }, []);
   
   const handleMicControlClick = () => {
-    // Case 1: Currently listening, so stop.
     if (isListening) {
-      stopListening();
-      return;
-    }
-    // Don't do anything if we are speaking or processing.
-    if (isPlaying || isProcessing) return;
-
-    // Case 2: Voice flow has not started, so initiate it.
-    if (!step) {
-      setStep('recipient');
-      // The useEffect on `step` will kick off the process.
-      return;
+        stopListening();
+        return;
     }
 
-    // Case 3: We are at the 'body' step, ready for dictation.
-    if (step === 'body') {
-      startListening('body');
-      return;
+    if (isProcessing || isPlaying) {
+        return;
+    }
+    
+    if (!step || step === 'done') {
+        setStep('recipient');
+    } else {
+        startListening(step);
     }
   };
   
@@ -262,113 +246,133 @@ export default function ComposePage() {
 
   const micButtonTitle = isListening
     ? "Stop listening"
-    : !step
-    ? "Start composing by voice"
-    : step === 'body'
-    ? "Dictate Email Body"
-    : "Voice composition active";
-
+    : isProcessing 
+    ? "Processing..."
+    : isPlaying
+    ? "Speaking..."
+    : "Start composing by voice";
 
   return (
-    <div className="p-4 md:p-6">
-      <Card className="max-w-4xl mx-auto shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              Compose Email
-              {isInteracting && (
-                  <div className="flex items-center gap-2 text-sm px-3 py-1 rounded-full bg-muted text-muted-foreground">
-                      {isListening && <><Mic className="h-4 w-4 animate-pulse" />Listening...</>}
-                      {isProcessing && <><Loader2 className="h-4 w-4 animate-spin" />Processing...</>}
-                      {isPlaying && <><Ear className="h-4 w-4" />Speaking...</>}
-                  </div>
-              )}
-            </div>
-          </CardTitle>
-          <CardDescription>
-            You can type your email manually or use the microphone button below to start a guided dictation session.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="to"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>To</FormLabel>
-                    <div className="flex items-center gap-2">
-                      <FormControl>
-                        <Input placeholder="recipient@example.com" {...field} className={cn(currentField === 'recipient' && 'border-primary ring-2 ring-primary')} />
-                      </FormControl>
-                      {getFieldStatusIcon('recipient')}
+    <>
+      <div className="p-4 md:p-6 pb-28">
+        <Card className="max-w-4xl mx-auto shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                Compose Email
+                {isInteracting && (
+                    <div className="flex items-center gap-2 text-sm px-3 py-1 rounded-full bg-muted text-muted-foreground">
+                        {isListening && <><Mic className="h-4 w-4 animate-pulse" />Listening...</>}
+                        {isProcessing && <><Loader2 className="h-4 w-4 animate-spin" />Processing...</>}
+                        {isPlaying && <><Ear className="h-4 w-4" />Speaking...</>}
                     </div>
-                    <FormMessage />
-                  </FormItem>
                 )}
-              />
-              <FormField
-                control={form.control}
-                name="subject"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Subject</FormLabel>
-                    <div className="flex items-center gap-2">
-                      <FormControl>
-                        <Input placeholder="Email subject" {...field} className={cn(currentField === 'subject' && 'border-primary ring-2 ring-primary')} />
-                      </FormControl>
-                      {getFieldStatusIcon('subject')}
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="body"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Body</FormLabel>
-                    <div className="flex items-start gap-2">
-                      <FormControl>
-                        <Textarea placeholder="Dictate your email, or use the microphone button below..." className={cn("min-h-[200px] resize-y", currentField === 'body' && 'border-primary ring-2 ring-primary')} {...field} />
-                      </FormControl>
-                       {getFieldStatusIcon('body')}
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="flex flex-col sm:flex-row gap-2 items-center">
-                <Button type="submit" disabled={isSending || isInteracting} size="lg" className="w-full sm:w-auto">
-                  {isSending ? (
-                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending...</>
-                  ) : (
-                    <><Send className="mr-2 h-4 w-4" />Send Email</>
-                  )}
-                </Button>
-                 <Button type="button" variant="outline" onClick={handleProofread} disabled={isInteracting} size="lg" className="w-full sm:w-auto">
-                    <FileText className="mr-2 h-4 w-4" />
-                    Proofread
-                </Button>
-                <div className="flex-1 flex justify-center sm:justify-end">
-                   <Button 
-                        type="button" 
-                        onClick={handleMicControlClick} 
-                        disabled={isProcessing || isPlaying}
-                        size="icon"
-                        className={cn("w-16 h-16 rounded-full transition-colors", isListening ? 'bg-destructive hover:bg-destructive/90' : 'bg-primary hover:bg-primary/90' )}
-                        title={micButtonTitle}
-                    >
-                       {isListening ? <Square className="h-7 w-7 fill-white" /> : <Mic className="h-7 w-7" />}
-                    </Button>
-                </div>
               </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
-    </div>
+            </CardTitle>
+            <CardDescription>
+              You can type your email manually or use the microphone button below to start a guided dictation session.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                <FormField
+                  control={form.control}
+                  name="to"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>To</FormLabel>
+                      <div className="flex items-center gap-2">
+                        <FormControl>
+                          <Input placeholder="recipient@example.com" {...field} className={cn(currentField === 'recipient' && 'border-primary ring-2 ring-primary')} />
+                        </FormControl>
+                        {getFieldStatusIcon('recipient')}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="subject"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Subject</FormLabel>
+                      <div className="flex items-center gap-2">
+                        <FormControl>
+                          <Input placeholder="Email subject" {...field} className={cn(currentField === 'subject' && 'border-primary ring-2 ring-primary')} />
+                        </FormControl>
+                        {getFieldStatusIcon('subject')}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="body"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Body</FormLabel>
+                      <div className="flex items-start gap-2">
+                        <FormControl>
+                          <Textarea placeholder="Dictate your email, or use the microphone button below..." className={cn("min-h-[200px] resize-y", currentField === 'body' && 'border-primary ring-2 ring-primary')} {...field} />
+                        </FormControl>
+                        {getFieldStatusIcon('body')}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="flex flex-col sm:flex-row gap-2 items-center">
+                  <Button type="submit" disabled={isSending || isInteracting} size="lg" className="w-full sm:w-auto">
+                    {isSending ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending...</>
+                    ) : (
+                      <><Send className="mr-2 h-4 w-4" />Send Email</>
+                    )}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={handleProofread} disabled={isInteracting} size="lg" className="w-full sm:w-auto">
+                      <FileText className="mr-2 h-4 w-4" />
+                      Proofread
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+      </div>
+      <div className="fixed bottom-6 right-6 z-50">
+        <TooltipProvider delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                type="button" 
+                onClick={handleMicControlClick} 
+                disabled={isProcessing || isPlaying}
+                size="icon"
+                className={cn(
+                    "rounded-full w-16 h-16 shadow-lg flex items-center justify-center transition-all duration-300",
+                    isListening ? 'bg-destructive hover:bg-destructive/90 animate-pulse' : 'bg-primary hover:bg-primary/90',
+                    (isProcessing || isPlaying) && "cursor-not-allowed bg-muted"
+                )}
+                aria-label={micButtonTitle}
+              >
+                {isProcessing ? (
+                  <Loader2 className="h-7 w-7 animate-spin" />
+                ) : isListening ? (
+                  <Square className="h-7 w-7 fill-white" />
+                ) : (
+                  <Mic className="h-7 w-7" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">
+              <p>{micButtonTitle}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+    </>
   );
 }
