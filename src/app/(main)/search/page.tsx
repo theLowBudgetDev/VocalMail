@@ -122,7 +122,7 @@ function SearchResultsPage() {
             <Dialog open={!!selectedEmail} onOpenChange={(isOpen) => { if (!isOpen) { stop(); setSelectedEmail(null); } }}>
                 <DialogContent className="sm:max-w-[625px]">
                     <DialogHeader>
-                        <DialogTitle>{selectedEmail.subject}</DialogTitle>
+                        <DialogTitle>{selectedEmail.subject || "Email Details"}</DialogTitle>
                         <DialogDescription>
                             {selectedEmail.tag === 'sent' 
                                 ? `To: ${selectedEmail.to?.name} <${selectedEmail.to?.email}>`

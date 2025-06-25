@@ -82,7 +82,7 @@ export default function SentPage() {
             <Dialog open={!!selectedEmail} onOpenChange={(isOpen) => { if (!isOpen) { stop(); setSelectedEmail(null); } }}>
                 <DialogContent className="sm:max-w-[625px]">
                     <DialogHeader>
-                        <DialogTitle>{selectedEmail.subject}</DialogTitle>
+                        <DialogTitle>{selectedEmail.subject || "Email Details"}</DialogTitle>
                         <DialogDescription>
                             To: {selectedEmail.to?.name} &lt;{selectedEmail.to?.email}&gt;
                             <br />
