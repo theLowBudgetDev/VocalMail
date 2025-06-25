@@ -208,21 +208,21 @@ export default function InboxPage() {
     <TooltipProvider>
       <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 h-[calc(100vh-4rem-1px)]">
         <div className={cn(
-            "col-span-1 xl:col-span-1 border-r bg-card h-full",
+            "col-span-1 xl:col-span-1 border-r bg-card h-full flex flex-col",
             isMobile && selectedEmailId && "hidden"
           )}>
-          <ScrollArea className="h-full">
-            <div className="p-4">
-              <h2 className="text-2xl font-bold">Inbox</h2>
-            </div>
-            <Separator />
+          <div className="p-4">
+            <h2 className="text-2xl font-bold">Inbox</h2>
+          </div>
+          <Separator />
+          <ScrollArea className="flex-1">
             {inboxEmails.length > 0 ? (
-              <ul className="divide-y">
+              <ul className="divide-y p-2">
                 {inboxEmails.map((email, index) => (
                   <li
                     key={email.id}
                     className={cn(
-                      "p-4 cursor-pointer hover:bg-muted/50",
+                      "p-4 cursor-pointer hover:bg-muted/50 rounded-lg",
                       selectedEmailId === email.id && "bg-muted"
                     )}
                     onClick={() => { stop(); setSelectedEmailId(email.id); setSuggestions([]); }}
