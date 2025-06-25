@@ -73,6 +73,13 @@ export default function ComposePage() {
     setStep(null);
   }, [reset, toast, play]);
 
+  const stopListening = React.useCallback(() => {
+    if (mediaRecorderRef.current?.state === "recording") {
+      mediaRecorderRef.current.stop();
+    }
+    setIsListening(false);
+  }, []);
+  
   // Functions are defined before they are used in other callbacks to avoid initialization errors.
   const handleProofread = React.useCallback(async () => {
     stopSpeech();
@@ -85,12 +92,8 @@ export default function ComposePage() {
     const proofreadText = `This email is to: ${to}. The subject is: ${subject}. The body is: ${body || 'The body is empty.'} Would you like to send it?`;
     play(proofreadText, () => {
       // After proofreading, listen for the "send" command.
-      // We are deliberately not including startListening in the dependency array
-      // to break the circular dependency between handleProofread and startListening.
-      // This is safe because startListening will be defined by the time this callback runs.
-      startListening('done');
+      // This is a special case where we listen for a final command.
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getValues, play, stopSpeech, trigger]);
 
   const startListening = React.useCallback(async (currentStep: CompositionStep) => {
@@ -112,7 +115,7 @@ export default function ComposePage() {
     
         mediaRecorderRef.current?.stream?.getTracks().forEach(track => track.stop());
     
-        if (audioBlob.size < 200) { // Increased threshold
+        if (audioBlob.size < 200) { 
           setIsProcessing(false);
           const prompts: Record<CompositionStep & string, string> = { recipient: "I didn't catch that. Who is the recipient?", subject: "Sorry, what is the subject?", body: "I'm listening for the body of the email." };
           play(prompts[step], () => startListening(step));
@@ -134,7 +137,7 @@ export default function ComposePage() {
                 handleProofread();
                 break;
               case 'action_help':
-                 play("You are composing an email. Speak to fill the current field. You can also say 'proofread email' to hear a draft, or 'send email' to send it.");
+                 play("You are composing an email. Use the mic to start. You can say 'proofread email' to hear a draft, or 'send email' to send it.");
                 break;
               case 'unknown':
                 // If command is unknown, assume it's dictation for the current field
@@ -179,14 +182,6 @@ export default function ComposePage() {
     }
   }, [step, play, toast, handleSubmit, getValues, setValue, handleProofread, onSubmit]);
 
-  const stopListening = React.useCallback(() => {
-    if (mediaRecorderRef.current?.state === "recording") {
-      mediaRecorderRef.current.stop();
-    }
-    setIsListening(false);
-  }, []);
-
-  
   React.useEffect(() => {
     const prompts: Record<CompositionStep & string, string> = {
       recipient: "Who is the recipient?",
@@ -228,7 +223,30 @@ export default function ComposePage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  
+  const handleMicControlClick = () => {
+    // Case 1: Currently listening, so stop.
+    if (isListening) {
+      stopListening();
+      return;
+    }
+    // Don't do anything if we are speaking or processing.
+    if (isPlaying || isProcessing) return;
 
+    // Case 2: Voice flow has not started, so initiate it.
+    if (!step) {
+      setStep('recipient');
+      // The useEffect on `step` will kick off the process.
+      return;
+    }
+
+    // Case 3: We are at the 'body' step, ready for dictation.
+    if (step === 'body') {
+      startListening('body');
+      return;
+    }
+  };
+  
   const isInteracting = isListening || isProcessing || isPlaying;
   const currentField: CompositionStep = isListening || isProcessing ? step : null;
 
@@ -241,15 +259,15 @@ export default function ComposePage() {
       }
       return <Ear className="h-5 w-5 text-muted-foreground" />;
   }
-  
-  const handleDictationButtonClick = () => {
-    if (isListening) {
-      stopListening();
-    } else {
-      setStep('body');
-      startListening('body');
-    }
-  }
+
+  const micButtonTitle = isListening
+    ? "Stop listening"
+    : !step
+    ? "Start composing by voice"
+    : step === 'body'
+    ? "Dictate Email Body"
+    : "Voice composition active";
+
 
   return (
     <div className="p-4 md:p-6">
@@ -266,18 +284,9 @@ export default function ComposePage() {
                   </div>
               )}
             </div>
-             <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setStep('recipient')} 
-                disabled={isInteracting || !!step}
-              >
-                <Ear className="mr-2 h-4 w-4" />
-                Compose by Voice
-            </Button>
           </CardTitle>
           <CardDescription>
-            You can type your email manually or use the &quot;Compose by Voice&quot; button to start a guided dictation session.
+            You can type your email manually or use the microphone button below to start a guided dictation session.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -346,11 +355,11 @@ export default function ComposePage() {
                 <div className="flex-1 flex justify-center sm:justify-end">
                    <Button 
                         type="button" 
-                        onClick={handleDictationButtonClick} 
-                        disabled={isProcessing || isPlaying || !step}
+                        onClick={handleMicControlClick} 
+                        disabled={isProcessing || isPlaying}
                         size="icon"
                         className={cn("w-16 h-16 rounded-full transition-colors", isListening ? 'bg-destructive hover:bg-destructive/90' : 'bg-primary hover:bg-primary/90' )}
-                        title={!step ? "Start 'Compose by Voice' flow to enable body dictation" : "Dictate Email Body"}
+                        title={micButtonTitle}
                     >
                        {isListening ? <Square className="h-7 w-7 fill-white" /> : <Mic className="h-7 w-7" />}
                     </Button>
