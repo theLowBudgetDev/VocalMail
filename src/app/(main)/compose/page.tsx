@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -8,7 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -66,7 +67,7 @@ export default function ComposePage() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-      audioChunksRef.current.push([]);
+      audioChunksRef.current = [];
       
       mediaRecorderRef.current.ondataavailable = (event) => audioChunksRef.current.push(event.data);
       
@@ -145,7 +146,7 @@ export default function ComposePage() {
       toast({ variant: "destructive", title: "Microphone Access Denied" });
       setStep(null);
     }
-  }, [step, play, toast, handleSubmit]);
+  }, [step, play, toast, handleSubmit, getValues, setValue, handleProofread]);
 
   const stopListening = React.useCallback(() => {
     if (mediaRecorderRef.current?.state === "recording") {
@@ -171,7 +172,7 @@ export default function ComposePage() {
     }
   }, [step, play, startListening, isPlaying]);
 
-  // Handle pre-filled form and start process on load
+  // Handle pre-filled form on load, but don't start voice flow
   React.useEffect(() => {
     const to = searchParams.get("to");
     const subject = searchParams.get("subject");
@@ -182,13 +183,10 @@ export default function ComposePage() {
     if (subject) { setValue("subject", subject); isPreFilled = true; }
     if (body) { setValue("body", body); isPreFilled = true; }
 
-    trigger(); // Validate pre-filled fields
-
     if (isPreFilled) {
+      trigger(); // Validate pre-filled fields
       play("Email draft ready. You can make changes, say 'proofread email' or say 'send email'.");
       setStep('done');
-    } else {
-      play("New email.", () => setStep('recipient'));
     }
 
     return () => { // Cleanup on unmount
@@ -197,6 +195,7 @@ export default function ComposePage() {
         mediaRecorderRef.current.stop();
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
 
@@ -253,16 +252,30 @@ export default function ComposePage() {
     <div className="p-4 md:p-6">
       <Card className="max-w-4xl mx-auto shadow-lg">
         <CardHeader>
-          <CardTitle className="flex items-center gap-4">
-            Compose Email
-            {isInteracting && (
-                <div className="flex items-center gap-2 text-sm px-3 py-1 rounded-full bg-muted text-muted-foreground">
-                    {isListening && <><Mic className="h-4 w-4 animate-pulse" />Listening...</>}
-                    {isProcessing && <><Loader2 className="h-4 w-4 animate-spin" />Processing...</>}
-                    {isPlaying && <><Ear className="h-4 w-4" />Speaking...</>}
-                </div>
-            )}
+          <CardTitle className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              Compose Email
+              {isInteracting && (
+                  <div className="flex items-center gap-2 text-sm px-3 py-1 rounded-full bg-muted text-muted-foreground">
+                      {isListening && <><Mic className="h-4 w-4 animate-pulse" />Listening...</>}
+                      {isProcessing && <><Loader2 className="h-4 w-4 animate-spin" />Processing...</>}
+                      {isPlaying && <><Ear className="h-4 w-4" />Speaking...</>}
+                  </div>
+              )}
+            </div>
+             <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setStep('recipient')} 
+                disabled={isInteracting || !!step}
+              >
+                <Ear className="mr-2 h-4 w-4" />
+                Compose by Voice
+            </Button>
           </CardTitle>
+          <CardDescription>
+            You can type your email manually or use the &quot;Compose by Voice&quot; button to start a guided dictation session.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -331,9 +344,10 @@ export default function ComposePage() {
                    <Button 
                         type="button" 
                         onClick={handleDictationButtonClick} 
-                        disabled={isProcessing || isPlaying}
+                        disabled={isProcessing || isPlaying || !step}
                         size="icon"
                         className={cn("w-16 h-16 rounded-full transition-colors", isListening ? 'bg-destructive hover:bg-destructive/90' : 'bg-primary hover:bg-primary/90' )}
+                        title={!step ? "Start 'Compose by Voice' flow to enable body dictation" : "Dictate Email Body"}
                     >
                        {isListening ? <Square className="h-7 w-7 fill-white" /> : <Mic className="h-7 w-7" />}
                     </Button>
