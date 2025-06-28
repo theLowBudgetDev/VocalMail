@@ -23,7 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useTextToSpeech } from "@/hooks/use-text-to-speech";
 import { voiceToTextConversion } from "@/ai/flows/voice-to-text-conversion";
-import { recognizeCommand } from "@/ai/flows/command-recognition";
+import { recognizeCommand, type RecognizeCommandOutput } from "@/ai/flows/command-recognition";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { playTone } from "@/lib/audio";
@@ -31,22 +31,22 @@ import { playTone } from "@/lib/audio";
 const emailSchema = z.object({
   to: z.string().email({ message: "Invalid email address." }),
   subject: z.string().min(1, { message: "Subject is required." }),
-  body: z.string().min(1, { message: "Email body cannot be empty." }),
+  body: z.string(),
 });
 
-type CompositionStep = "recipient" | "subject" | "body" | "done" | null;
+type CompositionStep = "to" | "subject" | "body" | "review" | "correcting";
 
 export default function ComposePage() {
   const [isSending, setIsSending] = React.useState(false);
-  const [step, setStep] = React.useState<CompositionStep>(null);
+  const [step, setStep] = React.useState<CompositionStep>("to");
   const [isListening, setIsListening] = React.useState(false);
-  const [isProcessing, setIsProcessing] = React.useState(false); 
+  const [isProcessing, setIsProcessing] = React.useState(false);
 
   const { toast } = useToast();
   const { play, stop: stopSpeech, isPlaying } = useTextToSpeech();
   const searchParams = useSearchParams();
   const router = useRouter();
-  
+
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
   const audioChunksRef = React.useRef<Blob[]>([]);
 
@@ -54,7 +54,7 @@ export default function ComposePage() {
     resolver: zodResolver(emailSchema),
     defaultValues: { to: "", subject: "", body: "" },
   });
-  const { setValue, handleSubmit, reset, getValues, trigger } = form;
+  const { setValue, handleSubmit, reset, getValues, trigger, formState: { errors } } = form;
 
   const handleTranscription = React.useCallback((field: "to" | "subject" | "body", text: string) => {
     const sanitizedText = text.replace(/(\r\n|\n|\r)/gm, "").trim();
@@ -65,29 +65,32 @@ export default function ComposePage() {
     }
   }, [setValue, getValues]);
 
-   const onSubmit = React.useCallback(async (data: z.infer<typeof emailSchema>) => {
+  const onSubmit = React.useCallback(async (data: z.infer<typeof emailSchema>) => {
     setIsSending(true);
     play("Sending email...");
     await new Promise(resolve => setTimeout(resolve, 1500));
     setIsSending(false);
-    toast({ title: "Email Sent!", description: `Email to ${data.to} sent.` });
-    play("Email sent successfully.");
-    reset({ to: "", subject: "", body: "" });
-    setStep(null);
+    toast({ title: "Email Sent!", description: `Email to ${data.to} sent successfully.` });
+    play("Email sent successfully.", () => {
+        reset({ to: "", subject: "", body: "" });
+        setStep("to");
+    });
   }, [reset, toast, play]);
 
   const handleProofread = React.useCallback(async () => {
     stopSpeech();
     const isValid = await trigger();
     if (!isValid) {
-      play("There are some errors in the form. Please check the fields.");
+      const errorMessages = Object.values(errors).map(e => e.message).join(' ');
+      play(`There are some errors. ${errorMessages}. You can say 'make a correction' to fix them.`);
+      setStep("review");
       return;
     }
     const { to, subject, body } = getValues();
-    const proofreadText = `This email is to: ${to}. The subject is: ${subject}. The body is: ${body || 'The body is empty.'} Would you like to send it?`;
+    const proofreadText = `This email is to: ${to}. The subject is: ${subject}. The body is: ${body || 'The body is empty.'} You can say 'send email' or 'make a correction'.`;
     play(proofreadText);
-  }, [getValues, play, stopSpeech, trigger]);
-
+  }, [getValues, play, stopSpeech, trigger, errors]);
+  
   const stopListening = React.useCallback(() => {
     if (mediaRecorderRef.current?.state === "recording") {
       mediaRecorderRef.current.stop();
@@ -95,32 +98,92 @@ export default function ComposePage() {
       setIsListening(false);
     }
   }, []);
-  
+
+  const processAudio = React.useCallback(async (audioDataUri: string) => {
+    try {
+        if (step === 'review') {
+            const result = await recognizeCommand({ audioDataUri, currentPath: '/compose' });
+            handleCommand(result);
+        } else if (step === 'correcting') {
+            const { transcription } = await voiceToTextConversion({ audioDataUri });
+            const field = transcription.toLowerCase().replace('.', '').trim();
+             if (['recipient', 'to', 'receiver'].includes(field)) {
+                setStep('to');
+                play("Okay, please dictate the new recipient.");
+            } else if (['subject'].includes(field)) {
+                setStep('subject');
+                play("Okay, please dictate the new subject.");
+            } else if (['body', 'message'].includes(field)) {
+                setStep('body');
+                play("Okay, please dictate the new body text.");
+            } else {
+                play("Sorry, I didn't catch that. Please say recipient, subject, or body.");
+                setStep('review'); // Go back to review state
+            }
+        } else { // Dictating a field
+            const result = await recognizeCommand({ audioDataUri, currentPath: '/compose' });
+            if (result.command !== 'unknown') {
+              handleCommand(result);
+              return;
+            }
+
+            const { transcription } = await voiceToTextConversion({ audioDataUri });
+            handleTranscription(step, transcription);
+            
+            if (step === 'to') setStep('subject');
+            else if (step === 'subject') setStep('body');
+            else if (step === 'body') setStep('review');
+        }
+    } catch (error) {
+         console.error("Processing failed:", error);
+         toast({ variant: "destructive", title: "Processing Failed", description: "I had trouble understanding. Let's try that again." });
+    } finally {
+        setIsProcessing(false);
+    }
+  }, [step, handleTranscription, toast]);
+
+  const handleCommand = React.useCallback((result: RecognizeCommandOutput) => {
+    const { command, correctionField } = result;
+    switch(command) {
+      case 'action_send':
+        handleSubmit(onSubmit)();
+        break;
+      case 'action_proofread_email':
+        handleProofread();
+        break;
+      case 'action_correct_email':
+        if (correctionField) {
+          setStep(correctionField);
+        } else {
+          setStep('correcting');
+        }
+        break;
+      case 'action_help':
+        play("You are in the compose flow. Hold the microphone button to dictate for the highlighted field. After filling the body, the email will be proofread. You can then say 'send email' or 'make a correction'.");
+        break;
+      case 'unknown':
+        // This case is handled in processAudio for dictation
+        break;
+      default:
+         play(`Sorry, the command ${command.replace(/_/g, ' ')} is not available here.`);
+    }
+  }, [handleSubmit, onSubmit, handleProofread, play]);
+
   const startListening = React.useCallback(async () => {
     if (isListening || isProcessing || isPlaying) return;
 
-    let currentStep = step;
-    if (!currentStep) {
-        currentStep = 'recipient';
-        setStep('recipient');
-    }
-    
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       playTone("start");
       mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
       audioChunksRef.current = [];
-      
       mediaRecorderRef.current.ondataavailable = (event) => audioChunksRef.current.push(event.data);
       
       mediaRecorderRef.current.onstop = async () => {
         setIsListening(false);
-        if (!step) return;
-    
         setIsProcessing(true);
         const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         audioChunksRef.current = [];
-    
         mediaRecorderRef.current?.stream?.getTracks().forEach(track => track.stop());
     
         if (audioBlob.size < 200) { 
@@ -130,38 +193,7 @@ export default function ComposePage() {
     
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
-        reader.onloadend = async () => {
-          const base64Audio = reader.result as string;
-          try {
-            const commandResult = await recognizeCommand({ audioDataUri: base64Audio, currentPath: '/compose' });
-            
-            switch(commandResult.command) {
-              case 'action_send':
-                handleSubmit(onSubmit)();
-                break;
-              case 'action_proofread_email':
-                handleProofread();
-                break;
-              case 'action_help':
-                 play("Hold the microphone button to dictate for the current field. You can say 'proofread email' or 'send email'.");
-                 break;
-              case 'unknown':
-                const { transcription } = await voiceToTextConversion({ audioDataUri: base64Audio });
-                handleTranscription(step, transcription);
-                if (step === 'recipient') setStep('subject');
-                else if (step === 'subject') setStep('body');
-                else if (step === 'body') setStep('done');
-                break;
-              default:
-                 play(`Sorry, the command ${commandResult.command.replace(/_/g, ' ')} is not available here. Please dictate the content for the current field.`);
-            }
-          } catch (error) {
-            console.error("Processing failed:", error);
-            toast({ variant: "destructive", title: "Processing Failed", description: "I had trouble understanding. Let's try that again." });
-          } finally {
-            setIsProcessing(false);
-          }
-        };
+        reader.onloadend = async () => processAudio(reader.result as string);
       };
 
       mediaRecorderRef.current.start();
@@ -169,10 +201,43 @@ export default function ComposePage() {
     } catch (err) {
       console.error("Mic error:", err);
       toast({ variant: "destructive", title: "Microphone Access Denied" });
-      setStep(null);
     }
-  }, [isListening, isProcessing, isPlaying, step, play, toast, handleSubmit, onSubmit, handleProofread, handleTranscription]);
+  }, [isListening, isProcessing, isPlaying, toast, processAudio]);
+  
+  React.useEffect(() => {
+    // Stop speech and recording on unmount
+    return () => {
+      stopSpeech();
+      if (mediaRecorderRef.current?.state === 'recording') {
+        mediaRecorderRef.current.stop();
+      }
+    };
+  }, [stopSpeech]);
 
+  // Handle step transitions and audio prompts
+  React.useEffect(() => {
+    if(isSending || isPlaying) return;
+    switch(step) {
+        case 'to':
+            play("First, who is the recipient?");
+            break;
+        case 'subject':
+            play("Got it. Now, what is the subject?");
+            break;
+        case 'body':
+            play("Great. Please dictate the body of the email.");
+            break;
+        case 'review':
+            handleProofread();
+            break;
+        case 'correcting':
+            play("Which field would you like to correct? Recipient, subject, or body?");
+            break;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, isSending]);
+
+  // Handle pre-filled form from search params
   React.useEffect(() => {
     const to = searchParams.get("to");
     const subject = searchParams.get("subject");
@@ -185,41 +250,26 @@ export default function ComposePage() {
 
     if (isPreFilled) {
       trigger(); 
-      play("Email draft ready. You can make changes, say 'proofread email' or say 'send email'.");
-      setStep('done');
-    }
-
-     const autorun = searchParams.get('autorun');
-      if (autorun === 'read_list' && !isPreFilled) {
-          play("Navigated to Compose. You can type or hold the microphone button to dictate each field.");
+      setStep('review');
+    } else {
+      const autorun = searchParams.get('autorun');
+      if (autorun === 'read_list') {
+          setStep('to');
           router.replace('/compose', {scroll: false});
+      } else {
+         setStep('to');
       }
-
-    return () => {
-      stopSpeech();
-      if (mediaRecorderRef.current?.state === 'recording') {
-        mediaRecorderRef.current.stop();
-      }
-    };
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, setValue, trigger, play, stopSpeech]);
-  
-  const isInteracting = isListening || isProcessing || isPlaying;
-  const currentField: CompositionStep = isListening || isProcessing ? step : null;
+  }, [searchParams, setValue, trigger, play]);
 
+  const isInteracting = isListening || isProcessing || isPlaying;
+  
   const getFieldHelperText = (field: CompositionStep) => {
-    if (currentField === field) {
-        return isListening ? "Listening..." : "Processing...";
+    if (step === field) {
+        return isListening ? "Listening..." : isProcessing ? "Processing..." : `Hold mic to dictate ${field === 'to' ? 'recipient' : field}.`;
     }
-    const value = getValues(field as "to" | "subject" | "body");
-    const fieldPrompts = {
-        recipient: "Hold mic to dictate recipient.",
-        subject: "Hold mic to dictate subject.",
-        body: "Hold mic to dictate body.",
-        done: "Composition complete.",
-        null: ""
-    }
-    return !value ? fieldPrompts[field!] : "";
+    return "";
   }
   
   const micButtonTitle = isListening
@@ -237,7 +287,7 @@ export default function ComposePage() {
           <CardHeader>
             <CardTitle>Compose Email</CardTitle>
             <CardDescription>
-              Type your email or hold the microphone button below to dictate each field.
+              Follow the audio prompts and hold the microphone button to dictate each field.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -250,9 +300,9 @@ export default function ComposePage() {
                     <FormItem>
                       <FormLabel>To</FormLabel>
                         <FormControl>
-                          <Input placeholder="recipient@example.com" {...field} className={cn(currentField === 'recipient' && 'border-primary ring-2 ring-primary')} onFocus={() => setStep('recipient')} />
+                          <Input placeholder="recipient@example.com" {...field} className={cn(step === 'to' && 'border-primary ring-2 ring-primary')} onFocus={() => setStep('to')} />
                         </FormControl>
-                        <p className="text-sm text-muted-foreground h-4">{getValues("to") ? "" : getFieldHelperText("recipient")}</p>
+                        <p className="text-sm text-muted-foreground h-4">{getFieldHelperText("to")}</p>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -264,9 +314,9 @@ export default function ComposePage() {
                     <FormItem>
                       <FormLabel>Subject</FormLabel>
                         <FormControl>
-                          <Input placeholder="Email subject" {...field} className={cn(currentField === 'subject' && 'border-primary ring-2 ring-primary')} onFocus={() => setStep('subject')} />
+                          <Input placeholder="Email subject" {...field} className={cn(step === 'subject' && 'border-primary ring-2 ring-primary')} onFocus={() => setStep('subject')} />
                         </FormControl>
-                         <p className="text-sm text-muted-foreground h-4">{getValues("subject") ? "" : getFieldHelperText("subject")}</p>
+                         <p className="text-sm text-muted-foreground h-4">{getFieldHelperText("subject")}</p>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -278,9 +328,9 @@ export default function ComposePage() {
                     <FormItem>
                       <FormLabel>Body</FormLabel>
                         <FormControl>
-                          <Textarea placeholder="Dictate your email, or use the microphone button below..." className={cn("min-h-[200px] resize-y", currentField === 'body' && 'border-primary ring-2 ring-primary')} {...field} onFocus={() => setStep('body')} />
+                          <Textarea placeholder="Dictate your email, or use the microphone button below..." className={cn("min-h-[200px] resize-y", step === 'body' && 'border-primary ring-2 ring-primary')} {...field} onFocus={() => setStep('body')} />
                         </FormControl>
-                         <p className="text-sm text-muted-foreground h-4">{getValues("body") ? "" : getFieldHelperText("body")}</p>
+                         <p className="text-sm text-muted-foreground h-4">{getFieldHelperText("body")}</p>
                       <FormMessage />
                     </FormItem>
                   )}

@@ -41,6 +41,7 @@ const validCommands = [
     "action_search_contact",
     "action_email_contact",
     "action_proofread_email",
+    "action_correct_email",
     "action_add_contact",
     "action_delete_contact",
     "action_search_email",
@@ -61,6 +62,7 @@ const RecognizeCommandOutputSchema = z.object({
   contactName: z.string().optional().describe("The name of the contact to search for, add, or delete."),
   searchQuery: z.string().optional().describe("The user's search query for emails."),
   category: CategoryEnum.optional().describe("The category of emails to read (e.g., 'urgent', 'promotions')."),
+  correctionField: z.enum(['to', 'subject', 'body']).optional().describe("The field to correct in the email draft (to, subject, or body)."),
 });
 export type RecognizeCommandOutput = z.infer<typeof RecognizeCommandOutputSchema>;
 
@@ -76,7 +78,7 @@ const prompt = ai.definePrompt({
   output: {schema: RecognizeCommandOutputSchema},
   prompt: `You are a voice command interpreter for the VocalMail email application. Your task is to understand the user's spoken command and map it to a single, specific command from the available list.
 
-The user is currently on the '{{currentPath}}' page. Use this context to resolve ambiguity.
+The user is currently on the '{{currentPath}}' page. Use this context to resolve ambiguity. If the user is on the '/compose' page, they are likely dictating content for a field, so you should default to the "unknown" command unless a very clear command is given (like "send email" or "make a correction").
 
 Available commands:
 - "navigate_inbox": To go to the inbox page. (e.g., "go to inbox", "show my mail")
@@ -97,6 +99,7 @@ Available commands:
 - "action_search_contact": To search for a contact by name. (Only on contacts page). If the user says "find Alice", extract the name into 'contactName'.
 - "action_email_contact": To start composing an email to a specific contact. (Only on contacts page). (e.g., "email Alice"). Extract the name into 'contactName'.
 - "action_proofread_email": To have the current email draft read back to you. (Only on compose page). (e.g., "proofread my email")
+- "action_correct_email": To make a correction to the email draft. If the user specifies a field (e.g., "correct the subject", "change the recipient"), extract the field name ('to', 'subject', or 'body') into 'correctionField'. (Only on compose page).
 - "action_add_contact": To open the form to add a new contact. (Only on contacts page). (e.g., "add a new contact")
 - "action_delete_contact": To delete a contact by name. (Only on contacts page). (e.g., "delete Bob", "remove Charlie"). Extract the name into 'contactName'.
 - "action_search_email": To search all emails. (Global command). If the user says "search for emails about project budget", extract "project budget" into 'searchQuery'.
