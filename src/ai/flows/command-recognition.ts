@@ -57,6 +57,7 @@ const CategoryEnum = z.enum(validCategories);
 
 const RecognizeCommandOutputSchema = z.object({
   command: z.enum(validCommands).describe('The recognized command from the provided list.'),
+  transcription: z.string().optional().describe("The direct transcription of the user's speech. This should be populated especially when the command is 'unknown'."),
   emailId: z.number().optional().describe('The 1-based index of the email to read, if applicable.'),
   suggestionId: z.number().optional().describe('The 1-based index of the smart reply suggestion to use, if applicable.'),
   contactName: z.string().optional().describe("The name of the contact to search for, add, or delete."),
@@ -76,9 +77,9 @@ const prompt = ai.definePrompt({
   name: 'commandRecognitionPrompt',
   input: {schema: RecognizeCommandInputSchema},
   output: {schema: RecognizeCommandOutputSchema},
-  prompt: `You are a voice command interpreter for the VocalMail email application. Your task is to understand the user's spoken command and map it to a single, specific command from the available list.
+  prompt: `You are a voice command interpreter for the VocalMail email application. Your task is to understand the user's spoken command and map it to a single, specific command from the available list. Also, provide a direct transcription of what the user said.
 
-The user is currently on the '{{currentPath}}' page. Use this context to resolve ambiguity. If the user is on the '/compose' page, they are likely dictating content for a field, so you should default to the "unknown" command unless a very clear command is given (like "send email" or "make a correction").
+The user is currently on the '{{currentPath}}' page. Use this context to resolve ambiguity. If the user is on the '/compose' page, they are likely dictating content for a field. In this case, the command should be 'unknown' and the 'transcription' field should contain their dictated text. Only recognize a specific command on the compose page if it's very clear (like "send email" or "make a correction").
 
 Available commands:
 - "navigate_inbox": To go to the inbox page. (e.g., "go to inbox", "show my mail")
@@ -111,7 +112,7 @@ Transcribe the audio and determine the most appropriate command.
 
 Audio: {{media url=audioDataUri}}
 
-Your output must be a single command and, if applicable, any relevant parameters.`,
+Your output must include both the transcribed text and a single command, plus any relevant parameters.`,
 });
 
 const commandRecognitionFlow = ai.defineFlow(

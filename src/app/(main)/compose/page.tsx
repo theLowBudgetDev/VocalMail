@@ -99,49 +99,6 @@ export default function ComposePage() {
     }
   }, []);
 
-  const processAudio = React.useCallback(async (audioDataUri: string) => {
-    try {
-        if (step === 'review') {
-            const result = await recognizeCommand({ audioDataUri, currentPath: '/compose' });
-            handleCommand(result);
-        } else if (step === 'correcting') {
-            const { transcription } = await voiceToTextConversion({ audioDataUri });
-            const field = transcription.toLowerCase().replace('.', '').trim();
-             if (['recipient', 'to', 'receiver'].includes(field)) {
-                setStep('to');
-                play("Okay, please dictate the new recipient.");
-            } else if (['subject'].includes(field)) {
-                setStep('subject');
-                play("Okay, please dictate the new subject.");
-            } else if (['body', 'message'].includes(field)) {
-                setStep('body');
-                play("Okay, please dictate the new body text.");
-            } else {
-                play("Sorry, I didn't catch that. Please say recipient, subject, or body.");
-                setStep('review'); // Go back to review state
-            }
-        } else { // Dictating a field
-            const result = await recognizeCommand({ audioDataUri, currentPath: '/compose' });
-            if (result.command !== 'unknown') {
-              handleCommand(result);
-              return;
-            }
-
-            const { transcription } = await voiceToTextConversion({ audioDataUri });
-            handleTranscription(step, transcription);
-            
-            if (step === 'to') setStep('subject');
-            else if (step === 'subject') setStep('body');
-            else if (step === 'body') setStep('review');
-        }
-    } catch (error) {
-         console.error("Processing failed:", error);
-         toast({ variant: "destructive", title: "Processing Failed", description: "I had trouble understanding. Let's try that again." });
-    } finally {
-        setIsProcessing(false);
-    }
-  }, [step, handleTranscription, toast]);
-
   const handleCommand = React.useCallback((result: RecognizeCommandOutput) => {
     const { command, correctionField } = result;
     switch(command) {
@@ -168,6 +125,58 @@ export default function ComposePage() {
          play(`Sorry, the command ${command.replace(/_/g, ' ')} is not available here.`);
     }
   }, [handleSubmit, onSubmit, handleProofread, play]);
+
+  const processAudio = React.useCallback(async (audioDataUri: string) => {
+    try {
+        if (step === 'review') {
+            const result = await recognizeCommand({ audioDataUri, currentPath: '/compose' });
+            handleCommand(result);
+        } else if (step === 'correcting') {
+            const { transcription } = await voiceToTextConversion({ audioDataUri });
+            const field = transcription.toLowerCase().replace('.', '').trim();
+             if (['recipient', 'to', 'receiver'].includes(field)) {
+                setStep('to');
+                play("Okay, please dictate the new recipient.");
+            } else if (['subject'].includes(field)) {
+                setStep('subject');
+                play("Okay, please dictate the new subject.");
+            } else if (['body', 'message'].includes(field)) {
+                setStep('body');
+                play("Okay, please dictate the new body text.");
+            } else {
+                play("Sorry, I didn't catch that. Please say recipient, subject, or body.");
+                setStep('review');
+            }
+        } else { // Dictating a field
+            const result = await recognizeCommand({ audioDataUri, currentPath: '/compose' });
+            const { command, transcription } = result;
+
+            const isInterruptingCommand = ['action_send', 'action_proofread_email', 'action_correct_email', 'action_help'].includes(command);
+
+            if (isInterruptingCommand) {
+                handleCommand(result);
+                return;
+            }
+
+            if (transcription) {
+                handleTranscription(step, transcription);
+            }
+            
+            if (step === 'to') {
+                setStep('subject');
+            } else if (step === 'subject') {
+                setStep('body');
+            } else if (step === 'body') {
+                setStep('review');
+            }
+        }
+    } catch (error) {
+         console.error("Processing failed:", error);
+         toast({ variant: "destructive", title: "Processing Failed", description: "I had trouble understanding. Let's try that again." });
+    } finally {
+        setIsProcessing(false);
+    }
+  }, [step, handleTranscription, toast, handleCommand, play]);
 
   const startListening = React.useCallback(async () => {
     if (isListening || isProcessing || isPlaying) return;
