@@ -26,6 +26,7 @@ import { voiceToTextConversion } from "@/ai/flows/voice-to-text-conversion";
 import { recognizeCommand } from "@/ai/flows/command-recognition";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { playTone } from "@/lib/audio";
 
 const emailSchema = z.object({
   to: z.string().email({ message: "Invalid email address." }),
@@ -90,6 +91,7 @@ export default function ComposePage() {
   const stopListening = React.useCallback(() => {
     if (mediaRecorderRef.current?.state === "recording") {
       mediaRecorderRef.current.stop();
+      playTone("stop");
       setIsListening(false);
     }
   }, []);
@@ -105,6 +107,7 @@ export default function ComposePage() {
     
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      playTone("start");
       mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
       audioChunksRef.current = [];
       

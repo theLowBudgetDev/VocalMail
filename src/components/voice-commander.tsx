@@ -16,6 +16,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { playTone } from "@/lib/audio";
 
 export function VoiceCommander() {
   const [isListening, setIsListening] = React.useState(false);
@@ -25,7 +26,7 @@ export function VoiceCommander() {
   const router = useRouter();
   const pathname = usePathname();
   const { toast } = useToast();
-  const { play } = useTextToSpeech();
+  const { play, stop } = useTextToSpeech();
 
   const isComposePage = pathname === '/compose';
 
@@ -33,15 +34,17 @@ export function VoiceCommander() {
     const { command, searchQuery } = result;
     if (command.startsWith('navigate_')) {
       const page = command.replace('navigate_', '');
+      stop(); // Stop any ongoing speech
       router.push(`/${page}?autorun=read_list`);
     } else if (command === 'action_search_email' && searchQuery) {
+      stop(); // Stop any ongoing speech
       router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
     } else if (command.startsWith('action_')) {
       window.dispatchEvent(new CustomEvent('voice-command', { detail: result }));
     } else if (command !== 'unknown') {
       play("Sorry, that command isn't available on this page.");
     }
-  }, [router, play]);
+  }, [router, play, stop]);
 
   const stopListening = React.useCallback(async () => {
     if (!isListening || mediaRecorderRef.current?.state !== "recording") {
@@ -49,6 +52,7 @@ export function VoiceCommander() {
     }
     
     mediaRecorderRef.current.stop();
+    playTone("stop");
     setIsListening(false);
   }, [isListening]);
 
@@ -57,6 +61,7 @@ export function VoiceCommander() {
     
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      playTone("start");
       mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
       audioChunksRef.current = [];
       mediaRecorderRef.current.ondataavailable = (event) => {
