@@ -263,6 +263,32 @@ export default function ComposePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, setValue, trigger, play]);
 
+  // Handle spacebar for dictation
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.code === 'Space' && !event.repeat) {
+        event.preventDefault();
+        startListening();
+      }
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.code === 'Space') {
+        event.preventDefault();
+        stopListening();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [startListening, stopListening]);
+
+
   const isInteracting = isListening || isProcessing || isPlaying;
   
   const getFieldHelperText = (field: CompositionStep) => {
