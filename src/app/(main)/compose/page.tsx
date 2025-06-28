@@ -57,11 +57,10 @@ export default function ComposePage() {
   const { setValue, handleSubmit, reset, getValues, trigger, formState: { errors } } = form;
 
   const handleTranscription = React.useCallback((field: "to" | "subject" | "body", text: string) => {
-    const sanitizedText = text.replace(/(\r\n|\n|\r)/gm, "").trim();
     if (field === 'body') {
-      setValue(field, getValues("body") + sanitizedText + " ", { shouldValidate: true });
+      setValue(field, getValues("body") + text + " ", { shouldValidate: true });
     } else {
-      setValue(field, sanitizedText, { shouldValidate: true });
+      setValue(field, text, { shouldValidate: true });
     }
   }, [setValue, getValues]);
 
@@ -127,49 +126,32 @@ export default function ComposePage() {
   }, [handleSubmit, onSubmit, handleProofread, play]);
 
   const processAudio = React.useCallback(async (audioDataUri: string) => {
+    setIsProcessing(true);
     try {
-        if (step === 'review') {
-            const result = await recognizeCommand({ audioDataUri, currentPath: '/compose' });
-            handleCommand(result);
-        } else if (step === 'correcting') {
-            const { transcription } = await voiceToTextConversion({ audioDataUri });
-            const field = transcription.toLowerCase().replace('.', '').trim();
-             if (['recipient', 'to', 'receiver'].includes(field)) {
-                setStep('to');
-                play("Okay, please dictate the new recipient.");
-            } else if (['subject'].includes(field)) {
-                setStep('subject');
-                play("Okay, please dictate the new subject.");
-            } else if (['body', 'message'].includes(field)) {
-                setStep('body');
-                play("Okay, please dictate the new body text.");
-            } else {
-                play("Sorry, I didn't catch that. Please say recipient, subject, or body.");
-                setStep('review');
-            }
-        } else { // Dictating a field
-            const result = await recognizeCommand({ audioDataUri, currentPath: '/compose' });
-            const { command, transcription } = result;
+      if (step === 'review' || step === 'correcting') {
+        // We expect a command
+        const result = await recognizeCommand({ audioDataUri, currentPath: '/compose' });
+        handleCommand(result);
+      } else { 
+        // We are dictating a field
+        const result = await voiceToTextConversion({
+          audioDataUri,
+          context: step,
+        });
 
-            const isInterruptingCommand = ['action_send', 'action_proofread_email', 'action_correct_email', 'action_help'].includes(command);
-
-            if (isInterruptingCommand) {
-                handleCommand(result);
-                return;
-            }
-
-            if (transcription) {
-                handleTranscription(step, transcription);
-            }
-            
-            if (step === 'to') {
-                setStep('subject');
-            } else if (step === 'subject') {
-                setStep('body');
-            } else if (step === 'body') {
-                setStep('review');
-            }
+        if (result.transcription) {
+          handleTranscription(step, result.transcription);
         }
+        
+        // Transition to the next step
+        if (step === 'to') {
+          setStep('subject');
+        } else if (step === 'subject') {
+          setStep('body');
+        } else if (step === 'body') {
+          setStep('review');
+        }
+      }
     } catch (error) {
          console.error("Processing failed:", error);
          toast({ variant: "destructive", title: "Processing Failed", description: "I had trouble understanding. Let's try that again." });
@@ -190,13 +172,11 @@ export default function ComposePage() {
       
       mediaRecorderRef.current.onstop = async () => {
         setIsListening(false);
-        setIsProcessing(true);
         const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         audioChunksRef.current = [];
         mediaRecorderRef.current?.stream?.getTracks().forEach(track => track.stop());
     
         if (audioBlob.size < 200) { 
-          setIsProcessing(false);
           return;
         }
     
@@ -225,7 +205,7 @@ export default function ComposePage() {
 
   // Handle step transitions and audio prompts
   React.useEffect(() => {
-    if(isSending || isPlaying) return;
+    if(isSending || isPlaying || isProcessing) return;
     switch(step) {
         case 'to':
             play("First, who is the recipient?");
@@ -244,7 +224,7 @@ export default function ComposePage() {
             break;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, isSending]);
+  }, [step, isSending, isProcessing]);
 
   // Handle pre-filled form from search params
   React.useEffect(() => {
@@ -386,7 +366,7 @@ export default function ComposePage() {
               </form>
             </Form>
           </CardContent>
-        </Card>
+        </card>
       </div>
       <div className="fixed bottom-6 right-6 z-50">
         <TooltipProvider delayDuration={100}>
