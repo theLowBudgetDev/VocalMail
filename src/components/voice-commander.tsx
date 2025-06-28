@@ -33,11 +33,9 @@ export function VoiceCommander() {
     const { command, searchQuery } = result;
     if (command.startsWith('navigate_')) {
       const page = command.replace('navigate_', '');
-      router.push(`/${page}`);
-      play(`Navigated to ${page}.`);
+      router.push(`/${page}?autorun=read_list`);
     } else if (command === 'action_search_email' && searchQuery) {
       router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
-      play(`Searched for emails about ${searchQuery}.`);
     } else if (command.startsWith('action_')) {
       window.dispatchEvent(new CustomEvent('voice-command', { detail: result }));
     } else if (command !== 'unknown') {
@@ -118,7 +116,7 @@ export function VoiceCommander() {
     if (isComposePage) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.code === 'Space' && !event.repeat) {
+      if (event.code === 'Space' && !event.repeat && !isListening && !isProcessing) {
           event.preventDefault(); 
           startListening();
       }
@@ -126,6 +124,7 @@ export function VoiceCommander() {
 
     const handleKeyUp = (event: KeyboardEvent) => {
       if (event.code === 'Space') {
+          event.preventDefault();
           stopListening();
       }
     };
@@ -137,7 +136,7 @@ export function VoiceCommander() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [startListening, stopListening, isComposePage]);
+  }, [startListening, stopListening, isComposePage, isListening, isProcessing]);
 
 
   if (isComposePage) {
@@ -153,9 +152,11 @@ export function VoiceCommander() {
           <TooltipTrigger asChild>
             <Button
               type="button"
+              disabled={isProcessing}
               className={cn(
                 "rounded-full w-16 h-16 shadow-lg flex items-center justify-center transition-all duration-300",
-                isListening ? "bg-destructive hover:bg-destructive/90 scale-110 animate-pulse" : "bg-primary hover:bg-primary/90"
+                isListening ? "bg-destructive hover:bg-destructive/90 scale-110 animate-pulse" : "bg-primary hover:bg-primary/90",
+                 isProcessing && "cursor-not-allowed bg-muted"
               )}
               aria-label={tooltipText}
               onMouseDown={startListening}

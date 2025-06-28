@@ -1,6 +1,8 @@
+
 "use client";
 
 import * as React from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { emails, type Email } from "@/lib/data";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -17,11 +19,29 @@ import {
 import { Button } from "@/components/ui/button";
 
 export default function SentPage() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
     const [selectedEmail, setSelectedEmail] = React.useState<Email | null>(null);
     const sentEmails = emails.filter((email) => email.tag === 'sent');
-    const { play, stop } = useTextToSpeech();
+    const { play, stop, isPlaying } = useTextToSpeech();
 
-     const handleReadEmail = (email: Email) => {
+    const handleReadList = React.useCallback(() => {
+        if (isPlaying) {
+            stop();
+            return;
+        }
+        if (sentEmails.length === 0) {
+            play("Your sent folder is empty.");
+            return;
+        }
+        const emailSnippets = sentEmails.map((email, index) => 
+          `Email ${index + 1}: To ${email.to?.name || 'N/A'}, Subject: ${email.subject}.`
+        ).join(' ');
+        const fullText = `You have ${sentEmails.length} sent emails. ${emailSnippets} To read an email, say 'read email' followed by its number.`;
+        play(fullText);
+    }, [sentEmails, isPlaying, play, stop]);
+
+    const handleReadEmail = (email: Email) => {
         if (!email) return;
         stop();
         setSelectedEmail(email);
@@ -31,10 +51,20 @@ export default function SentPage() {
     }
 
     React.useEffect(() => {
+        const autorun = searchParams.get('autorun');
+        if (autorun === 'read_list') {
+            play("Navigated to Sent.", handleReadList);
+            router.replace('/sent', {scroll: false});
+        }
+    }, [searchParams, play, handleReadList, router]);
+
+    React.useEffect(() => {
         const handleCommand = (event: CustomEvent) => {
             const { command, emailId } = event.detail;
             if (command === 'action_help') {
-                play("You are viewing sent emails. Say 'read email' and a number to hear an email. You can also use global navigation commands.");
+                play("You are viewing sent emails. Say 'read the list' or 'read email' and a number to hear an email.");
+            } else if (command === 'action_read_list') {
+                handleReadList();
             } else if (command === 'action_read_email' && emailId > 0 && emailId <= sentEmails.length) {
                 const emailToRead = sentEmails[emailId - 1];
                 handleReadEmail(emailToRead);
@@ -42,7 +72,7 @@ export default function SentPage() {
         };
         window.addEventListener('voice-command', handleCommand as EventListener);
         return () => window.removeEventListener('voice-command', handleCommand as EventListener);
-    }, [sentEmails, play]);
+    }, [sentEmails, play, handleReadList]);
 
     return (
       <div className="p-4 md:p-6">

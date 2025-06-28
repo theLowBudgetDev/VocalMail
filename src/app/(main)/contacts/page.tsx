@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { contacts as initialContacts, type Contact } from "@/lib/data";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -30,6 +30,7 @@ export default function ContactsPage() {
 
     const { play } = useTextToSpeech();
     const router = useRouter();
+    const searchParams = useSearchParams();
 
     const filteredContacts = React.useMemo(() => {
         if (!searchQuery) {
@@ -40,13 +41,21 @@ export default function ContactsPage() {
         );
     }, [searchQuery, contacts]);
 
+    const handleReadList = React.useCallback(() => {
+        const contactNames = filteredContacts.map(c => c.name).join(', ');
+        if (filteredContacts.length > 0) {
+            play(`Showing ${filteredContacts.length} contacts: ${contactNames}.`);
+        } else {
+            play('There are no contacts to show.');
+        }
+    }, [filteredContacts, play]);
+
     const handleSearch = (query: string) => {
         setSearchQuery(query);
     };
 
     const handleEmailContact = (email: string, name: string) => {
         router.push(`/compose?to=${encodeURIComponent(email)}`);
-        play(`Navigated to compose page to email ${name}.`);
     };
 
     const clearSearch = () => {
@@ -81,6 +90,14 @@ export default function ContactsPage() {
             play(`Sorry, I could not find a contact named ${name}.`);
         }
     };
+
+    React.useEffect(() => {
+        const autorun = searchParams.get('autorun');
+        if (autorun === 'read_list') {
+            play("Navigated to Contacts.", handleReadList);
+            router.replace('/contacts', {scroll: false});
+        }
+    }, [searchParams, play, handleReadList, router]);
     
     React.useEffect(() => {
         const handleCommand = (event: CustomEvent) => {
@@ -93,12 +110,7 @@ export default function ContactsPage() {
                     }
                     break;
                 case 'action_read_list':
-                    const contactNames = filteredContacts.map(c => c.name).join(', ');
-                    if (filteredContacts.length > 0) {
-                        play(`Showing ${filteredContacts.length} contacts: ${contactNames}.`);
-                    } else {
-                        play('There are no contacts to show.');
-                    }
+                    handleReadList();
                     break;
                 case 'action_email_contact':
                      if (contactName) {
@@ -130,7 +142,7 @@ export default function ContactsPage() {
         return () => {
             window.removeEventListener('voice-command', handleCommand as EventListener);
         };
-    }, [play, filteredContacts, contacts]);
+    }, [play, filteredContacts, contacts, handleReadList]);
 
     return (
       <div className="p-4 md:p-6">

@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { Archive, Trash2, Loader2, PlayCircle, StopCircle, CornerUpLeft, ArrowLeft, FileText } from "lucide-react";
 
@@ -25,12 +25,41 @@ import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function InboxPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const isMobile = useIsMobile();
   const [inboxEmails, setInboxEmails] = React.useState(() => allEmails.filter((email) => email.tag === 'inbox'));
   const [selectedEmailId, setSelectedEmailId] = React.useState<string | null>(null);
   const [suggestions, setSuggestions] = React.useState<string[]>([]);
   const [isGeneratingSuggestions, setIsGeneratingSuggestions] = React.useState(false);
   const [isSummarizing, setIsSummarizing] = React.useState(false);
+
+  const { isPlaying, isGenerating, play, stop } = useTextToSpeech();
+
+  const handleReadList = React.useCallback(() => {
+      if (isPlaying) {
+          stop();
+          return;
+      }
+      if (inboxEmails.length === 0) {
+          play("Your inbox is empty.");
+          return;
+      }
+      const emailSnippets = inboxEmails.map((email, index) => 
+        `Email ${index + 1}: From ${email.from.name}, Subject: ${email.subject}.`
+      ).join(' ');
+      const fullText = `You have ${inboxEmails.length} emails. ${emailSnippets} To read an email, say 'read email' followed by its number.`;
+      play(fullText);
+  }, [inboxEmails, isPlaying, play, stop]);
+  
+  React.useEffect(() => {
+    const autorun = searchParams.get('autorun');
+    if (autorun === 'read_list') {
+        play("Navigated to Inbox.", handleReadList);
+        // Clean the URL to prevent re-triggering on refresh
+        router.replace('/inbox', {scroll: false});
+    }
+  }, [searchParams, play, handleReadList, router]);
+
 
   React.useEffect(() => {
     if (isMobile === undefined) return;
@@ -48,8 +77,6 @@ export default function InboxPage() {
   const selectedEmail = React.useMemo(() => {
     return inboxEmails.find((email) => email.id === selectedEmailId);
   }, [selectedEmailId, inboxEmails]);
-
-  const { isPlaying, isGenerating, play, stop } = useTextToSpeech();
   
   const handleGenerateSuggestions = React.useCallback(async (emailBody: string) => {
     if (!emailBody) return;
@@ -97,23 +124,6 @@ export default function InboxPage() {
     }
   }, [isPlaying, play, stop, handleGenerateSuggestions]);
 
-  const handleReadList = React.useCallback(() => {
-      if (isPlaying) {
-          stop();
-          return;
-      }
-      if (inboxEmails.length === 0) {
-          play("Your inbox is empty.");
-          return;
-      }
-      const emailSnippets = inboxEmails.map((email, index) => 
-        `Email ${index + 1}: From ${email.from.name}, Subject: ${email.subject}.`
-      ).join(' ');
-      const fullText = `You have ${inboxEmails.length} emails. ${emailSnippets} To read an email, say 'read email' followed by its number.`;
-      play(fullText);
-  }, [inboxEmails, isPlaying, play, stop]);
-
-
   const handleArchiveEmail = React.useCallback(() => {
     if (selectedEmailId) {
       stop();
@@ -142,17 +152,15 @@ export default function InboxPage() {
     if (selectedEmail) {
       stop();
       router.push(`/compose?to=${encodeURIComponent(selectedEmail.from.email)}&subject=${encodeURIComponent(`Re: ${selectedEmail.subject}`)}`);
-      play("Navigated to compose page to reply.");
     }
-  }, [selectedEmail, router, stop, play]);
+  }, [selectedEmail, router, stop]);
 
   const handleUseSuggestion = React.useCallback((suggestion: string) => {
     if (selectedEmail) {
       stop();
       router.push(`/compose?to=${encodeURIComponent(selectedEmail.from.email)}&subject=${encodeURIComponent(`Re: ${selectedEmail.subject}`)}&body=${encodeURIComponent(suggestion)}`);
-      play(`Replying with: ${suggestion}`);
     }
-  }, [selectedEmail, router, stop, play]);
+  }, [selectedEmail, router, stop]);
 
 
   React.useEffect(() => {

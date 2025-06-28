@@ -1,6 +1,8 @@
+
 "use client";
 
 import * as React from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { emails, type Email } from "@/lib/data";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -17,9 +19,28 @@ import {
 import { Button } from "@/components/ui/button";
 
 export default function ArchivePage() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
     const [selectedEmail, setSelectedEmail] = React.useState<Email | null>(null);
     const archivedEmails = emails.filter((email) => email.tag === 'archive');
-    const { play, stop } = useTextToSpeech();
+    const { play, stop, isPlaying } = useTextToSpeech();
+
+    const handleReadList = React.useCallback(() => {
+        if (isPlaying) {
+            stop();
+            return;
+        }
+        if (archivedEmails.length === 0) {
+            play("Your archive is empty.");
+            return;
+        }
+        const emailSnippets = archivedEmails.map((email, index) => 
+          `Email ${index + 1}: From ${email.from.name}, Subject: ${email.subject}.`
+        ).join(' ');
+        const fullText = `You have ${archivedEmails.length} archived emails. ${emailSnippets} To read an email, say 'read email' followed by its number.`;
+        play(fullText);
+    }, [archivedEmails, isPlaying, play, stop]);
+
 
     const handleReadEmail = (email: Email) => {
         if (!email) return;
@@ -31,11 +52,21 @@ export default function ArchivePage() {
     }
 
     React.useEffect(() => {
+        const autorun = searchParams.get('autorun');
+        if (autorun === 'read_list') {
+            play("Navigated to Archive.", handleReadList);
+            router.replace('/archive', {scroll: false});
+        }
+    }, [searchParams, play, handleReadList, router]);
+
+    React.useEffect(() => {
         const handleCommand = (event: CustomEvent) => {
             const { command, emailId } = event.detail;
 
             if (command === 'action_help') {
-                play("You are viewing archived emails. Say 'read email' and a number to hear an email. You can also use global navigation commands.");
+                play("You are viewing archived emails. Say 'read the list' or 'read email' and a number to hear an email.");
+            } else if (command === 'action_read_list') {
+                handleReadList();
             } else if (command === 'action_read_email' && emailId > 0 && emailId <= archivedEmails.length) {
                 const emailToRead = archivedEmails[emailId - 1];
                 handleReadEmail(emailToRead);
@@ -43,7 +74,7 @@ export default function ArchivePage() {
         };
         window.addEventListener('voice-command', handleCommand as EventListener);
         return () => window.removeEventListener('voice-command', handleCommand as EventListener);
-    }, [archivedEmails, play]);
+    }, [archivedEmails, play, handleReadList]);
 
     return (
       <div className="p-4 md:p-6">

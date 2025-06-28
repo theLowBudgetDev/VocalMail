@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -28,10 +29,6 @@ function SearchResultsPage() {
     const [selectedEmail, setSelectedEmail] = React.useState<Email | null>(null);
     const { play, stop } = useTextToSpeech();
 
-    React.useEffect(() => {
-        setInputValue(query);
-    }, [query]);
-
     const searchResults = React.useMemo(() => {
         if (!query) return [];
         const lowercasedQuery = query.toLowerCase();
@@ -42,6 +39,34 @@ function SearchResultsPage() {
             (email.to && email.to.name.toLowerCase().includes(lowercasedQuery))
         );
     }, [query]);
+
+    const handleReadList = React.useCallback(() => {
+        if (searchResults.length === 0) {
+            play(query ? `There are no search results for "${query}".` : "There are no search results. Say 'search for' and your query to start.");
+            return;
+        }
+        const emailSnippets = searchResults.map((email, index) => 
+            `Email ${index + 1}: ${email.tag === 'sent' ? 'To' : 'From'} ${email.tag === 'sent' ? email.to?.name : email.from.name}, Subject: ${email.subject}.`
+        ).join(' ');
+        const fullText = `You have ${searchResults.length} search results. ${emailSnippets}`;
+        play(fullText);
+    }, [searchResults, play, query]);
+
+    React.useEffect(() => {
+        setInputValue(query);
+        if (query) {
+            play(`Showing ${searchResults.length} results for your search: ${query}.`);
+        }
+    }, [query, searchResults.length, play]);
+
+     React.useEffect(() => {
+        const autorun = searchParams.get('autorun');
+        if (autorun === 'read_list' && !query) {
+            play("Navigated to Search.", handleReadList);
+            router.replace('/search', {scroll: false});
+        }
+    }, [searchParams, play, handleReadList, router, query]);
+
 
     const handleSearchSubmit = (event: React.FormEvent) => {
         event.preventDefault();
@@ -59,13 +84,6 @@ function SearchResultsPage() {
     }
 
     React.useEffect(() => {
-        if (query && searchResults.length > 0) {
-            play(`Showing ${searchResults.length} results for your search: ${query}.`);
-        }
-    }, [query, searchResults.length, play]);
-
-
-    React.useEffect(() => {
         const handleCommand = (event: CustomEvent) => {
             const { command, emailId } = event.detail;
 
@@ -75,20 +93,12 @@ function SearchResultsPage() {
                 const emailToRead = searchResults[emailId - 1];
                 handleReadEmail(emailToRead);
             } else if (command === 'action_read_list') {
-                 if (searchResults.length === 0) {
-                    play("There are no search results.");
-                    return;
-                }
-                const emailSnippets = searchResults.map((email, index) => 
-                    `Email ${index + 1}: From ${email.from.name}, Subject: ${email.subject}.`
-                ).join(' ');
-                const fullText = `You have ${searchResults.length} search results. ${emailSnippets}`;
-                play(fullText);
+                 handleReadList();
             }
         };
         window.addEventListener('voice-command', handleCommand as EventListener);
         return () => window.removeEventListener('voice-command', handleCommand as EventListener);
-    }, [searchResults, play]);
+    }, [searchResults, play, handleReadList]);
 
     return (
       <div className="p-4 md:p-6">

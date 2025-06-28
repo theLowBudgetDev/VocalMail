@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Send, Loader2, Mic, FileText, Square } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -44,6 +44,7 @@ export default function ComposePage() {
   const { toast } = useToast();
   const { play, stop: stopSpeech, isPlaying } = useTextToSpeech();
   const searchParams = useSearchParams();
+  const router = useRouter();
   
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
   const audioChunksRef = React.useRef<Blob[]>([]);
@@ -63,7 +64,7 @@ export default function ComposePage() {
     }
   }, [setValue, getValues]);
 
-  const onSubmit = React.useCallback(async (data: z.infer<typeof emailSchema>) => {
+   const onSubmit = React.useCallback(async (data: z.infer<typeof emailSchema>) => {
     setIsSending(true);
     play("Sending email...");
     await new Promise(resolve => setTimeout(resolve, 1500));
@@ -85,6 +86,13 @@ export default function ComposePage() {
     const proofreadText = `This email is to: ${to}. The subject is: ${subject}. The body is: ${body || 'The body is empty.'} Would you like to send it?`;
     play(proofreadText);
   }, [getValues, play, stopSpeech, trigger]);
+
+  const stopListening = React.useCallback(() => {
+    if (mediaRecorderRef.current?.state === "recording") {
+      mediaRecorderRef.current.stop();
+      setIsListening(false);
+    }
+  }, []);
   
   const startListening = React.useCallback(async () => {
     if (isListening || isProcessing || isPlaying) return;
@@ -162,12 +170,6 @@ export default function ComposePage() {
     }
   }, [isListening, isProcessing, isPlaying, step, play, toast, handleSubmit, onSubmit, handleProofread, handleTranscription]);
 
-  const stopListening = React.useCallback(() => {
-    if (mediaRecorderRef.current?.state === "recording") {
-      mediaRecorderRef.current.stop();
-    }
-  }, []);
-
   React.useEffect(() => {
     const to = searchParams.get("to");
     const subject = searchParams.get("subject");
@@ -184,12 +186,19 @@ export default function ComposePage() {
       setStep('done');
     }
 
+     const autorun = searchParams.get('autorun');
+      if (autorun === 'read_list' && !isPreFilled) {
+          play("Navigated to Compose. You can type or hold the microphone button to dictate each field.");
+          router.replace('/compose', {scroll: false});
+      }
+
     return () => {
       stopSpeech();
       if (mediaRecorderRef.current?.state === 'recording') {
         mediaRecorderRef.current.stop();
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, setValue, trigger, play, stopSpeech]);
   
   const isInteracting = isListening || isProcessing || isPlaying;
