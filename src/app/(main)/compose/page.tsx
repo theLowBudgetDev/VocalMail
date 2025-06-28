@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
-import { Send, Loader2, Mic, Ear, Square, FileText } from "lucide-react";
+import { Send, Loader2, Mic, FileText, Square } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -39,7 +39,7 @@ export default function ComposePage() {
   const [isSending, setIsSending] = React.useState(false);
   const [step, setStep] = React.useState<CompositionStep>(null);
   const [isListening, setIsListening] = React.useState(false);
-  const [isProcessing, setIsProcessing] = React.useState(false); // Combined transcription and command recognition
+  const [isProcessing, setIsProcessing] = React.useState(false); 
 
   const { toast } = useToast();
   const { play, stop: stopSpeech, isPlaying } = useTextToSpeech();
@@ -54,14 +54,14 @@ export default function ComposePage() {
   });
   const { setValue, handleSubmit, reset, getValues, trigger } = form;
 
-  const handleTranscription = (field: "to" | "subject" | "body", text: string) => {
+  const handleTranscription = React.useCallback((field: "to" | "subject" | "body", text: string) => {
     const sanitizedText = text.replace(/(\r\n|\n|\r)/gm, "").trim();
     if (field === 'body') {
       setValue(field, getValues("body") + sanitizedText + " ", { shouldValidate: true });
     } else {
       setValue(field, sanitizedText, { shouldValidate: true });
     }
-  };
+  }, [setValue, getValues]);
 
   const onSubmit = React.useCallback(async (data: z.infer<typeof emailSchema>) => {
     setIsSending(true);
@@ -74,13 +74,6 @@ export default function ComposePage() {
     setStep(null);
   }, [reset, toast, play]);
 
-  const stopListening = React.useCallback(() => {
-    if (mediaRecorderRef.current?.state === "recording") {
-      mediaRecorderRef.current.stop();
-    }
-    setIsListening(false);
-  }, []);
-  
   const handleProofread = React.useCallback(async () => {
     stopSpeech();
     const isValid = await trigger();
@@ -93,8 +86,15 @@ export default function ComposePage() {
     play(proofreadText);
   }, [getValues, play, stopSpeech, trigger]);
   
-  const startListening = React.useCallback(async (currentStep: CompositionStep) => {
-    if (!currentStep || currentStep === 'done') return;
+  const startListening = React.useCallback(async () => {
+    if (isListening || isProcessing || isPlaying) return;
+
+    let currentStep = step;
+    if (!currentStep) {
+        currentStep = 'recipient';
+        setStep('recipient');
+    }
+    
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
@@ -114,8 +114,6 @@ export default function ComposePage() {
     
         if (audioBlob.size < 200) { 
           setIsProcessing(false);
-          const prompts: Record<CompositionStep & string, string> = { recipient: "I didn't catch that. Who is the recipient?", subject: "Sorry, what is the subject?", body: "I'm listening for the body of the email." };
-          play(prompts[step], () => startListening(step));
           return;
         }
     
@@ -134,23 +132,21 @@ export default function ComposePage() {
                 handleProofread();
                 break;
               case 'action_help':
-                 play("You are composing an email. Use the mic to start. You can say 'proofread email' to hear a draft, or 'send email' to send it.");
-                 startListening(step);
-                break;
+                 play("Hold the microphone button to dictate for the current field. You can say 'proofread email' or 'send email'.");
+                 break;
               case 'unknown':
                 const { transcription } = await voiceToTextConversion({ audioDataUri: base64Audio });
                 handleTranscription(step, transcription);
                 if (step === 'recipient') setStep('subject');
                 else if (step === 'subject') setStep('body');
+                else if (step === 'body') setStep('done');
                 break;
               default:
                  play(`Sorry, the command ${commandResult.command.replace(/_/g, ' ')} is not available here. Please dictate the content for the current field.`);
-                 startListening(step);
             }
           } catch (error) {
             console.error("Processing failed:", error);
             toast({ variant: "destructive", title: "Processing Failed", description: "I had trouble understanding. Let's try that again." });
-            startListening(step);
           } finally {
             setIsProcessing(false);
           }
@@ -159,35 +155,18 @@ export default function ComposePage() {
 
       mediaRecorderRef.current.start();
       setIsListening(true);
-      if(step === 'recipient' || step === 'subject') {
-        setTimeout(() => {
-           if (mediaRecorderRef.current?.state === 'recording') {
-              mediaRecorderRef.current.stop();
-           }
-        }, 5000); 
-      }
     } catch (err) {
       console.error("Mic error:", err);
       toast({ variant: "destructive", title: "Microphone Access Denied" });
       setStep(null);
     }
-  }, [step, play, toast, handleSubmit, onSubmit, handleProofread]);
+  }, [isListening, isProcessing, isPlaying, step, play, toast, handleSubmit, onSubmit, handleProofread, handleTranscription]);
 
-  React.useEffect(() => {
-    const prompts: Record<CompositionStep & string, string> = {
-      recipient: "Who is the recipient?",
-      subject: "What is the subject?",
-      body: "Please dictate the body of the email. Press the microphone button when you are finished.",
-      done: "Email ready. You can make changes, say 'proofread email', or say 'send email'."
-    };
-    if (step && prompts[step] && !isPlaying) {
-      play(prompts[step], () => {
-          if (step !== 'done' && step !== 'body') {
-              startListening(step);
-          }
-      });
+  const stopListening = React.useCallback(() => {
+    if (mediaRecorderRef.current?.state === "recording") {
+      mediaRecorderRef.current.stop();
     }
-  }, [step, play, startListening, isPlaying]);
+  }, []);
 
   React.useEffect(() => {
     const to = searchParams.get("to");
@@ -211,66 +190,42 @@ export default function ComposePage() {
         mediaRecorderRef.current.stop();
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  
-  const handleMicControlClick = () => {
-    if (isListening) {
-        stopListening();
-        return;
-    }
-
-    if (isProcessing || isPlaying) {
-        return;
-    }
-    
-    if (!step || step === 'done') {
-        setStep('recipient');
-    } else {
-        startListening(step);
-    }
-  };
+  }, [searchParams, setValue, trigger, play, stopSpeech]);
   
   const isInteracting = isListening || isProcessing || isPlaying;
   const currentField: CompositionStep = isListening || isProcessing ? step : null;
 
-  const getFieldStatusIcon = (field: CompositionStep) => {
-      if (currentField === field) {
-          return isListening ? <Mic className="h-5 w-5 text-destructive animate-pulse" /> : <Loader2 className="h-5 w-5 animate-spin" />;
-      }
-      if (getValues(field as "to" | "subject" | "body")) {
-          return <FileText className="h-5 w-5 text-green-500" />;
-      }
-      return <Ear className="h-5 w-5 text-muted-foreground" />;
+  const getFieldHelperText = (field: CompositionStep) => {
+    if (currentField === field) {
+        return isListening ? "Listening..." : "Processing...";
+    }
+    const value = getValues(field as "to" | "subject" | "body");
+    const fieldPrompts = {
+        recipient: "Hold mic to dictate recipient.",
+        subject: "Hold mic to dictate subject.",
+        body: "Hold mic to dictate body.",
+        done: "Composition complete.",
+        null: ""
+    }
+    return !value ? fieldPrompts[field!] : "";
   }
-
+  
   const micButtonTitle = isListening
-    ? "Stop listening"
+    ? "Listening... Release to stop"
     : isProcessing 
     ? "Processing..."
     : isPlaying
     ? "Speaking..."
-    : "Start composing by voice";
+    : "Hold to dictate";
 
   return (
     <>
       <div className="p-4 md:p-6 pb-28">
         <Card className="max-w-4xl mx-auto shadow-lg">
           <CardHeader>
-            <CardTitle className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                Compose Email
-                {isInteracting && (
-                    <div className="flex items-center gap-2 text-sm px-3 py-1 rounded-full bg-muted text-muted-foreground">
-                        {isListening && <><Mic className="h-4 w-4 animate-pulse" />Listening...</>}
-                        {isProcessing && <><Loader2 className="h-4 w-4 animate-spin" />Processing...</>}
-                        {isPlaying && <><Ear className="h-4 w-4" />Speaking...</>}
-                    </div>
-                )}
-              </div>
-            </CardTitle>
+            <CardTitle>Compose Email</CardTitle>
             <CardDescription>
-              You can type your email manually or use the microphone button below to start a guided dictation session.
+              Type your email or hold the microphone button below to dictate each field.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -282,12 +237,10 @@ export default function ComposePage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>To</FormLabel>
-                      <div className="flex items-center gap-2">
                         <FormControl>
-                          <Input placeholder="recipient@example.com" {...field} className={cn(currentField === 'recipient' && 'border-primary ring-2 ring-primary')} />
+                          <Input placeholder="recipient@example.com" {...field} className={cn(currentField === 'recipient' && 'border-primary ring-2 ring-primary')} onFocus={() => setStep('recipient')} />
                         </FormControl>
-                        {getFieldStatusIcon('recipient')}
-                      </div>
+                        <p className="text-sm text-muted-foreground h-4">{getValues("to") ? "" : getFieldHelperText("recipient")}</p>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -298,12 +251,10 @@ export default function ComposePage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Subject</FormLabel>
-                      <div className="flex items-center gap-2">
                         <FormControl>
-                          <Input placeholder="Email subject" {...field} className={cn(currentField === 'subject' && 'border-primary ring-2 ring-primary')} />
+                          <Input placeholder="Email subject" {...field} className={cn(currentField === 'subject' && 'border-primary ring-2 ring-primary')} onFocus={() => setStep('subject')} />
                         </FormControl>
-                        {getFieldStatusIcon('subject')}
-                      </div>
+                         <p className="text-sm text-muted-foreground h-4">{getValues("subject") ? "" : getFieldHelperText("subject")}</p>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -314,12 +265,10 @@ export default function ComposePage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Body</FormLabel>
-                      <div className="flex items-start gap-2">
                         <FormControl>
-                          <Textarea placeholder="Dictate your email, or use the microphone button below..." className={cn("min-h-[200px] resize-y", currentField === 'body' && 'border-primary ring-2 ring-primary')} {...field} />
+                          <Textarea placeholder="Dictate your email, or use the microphone button below..." className={cn("min-h-[200px] resize-y", currentField === 'body' && 'border-primary ring-2 ring-primary')} {...field} onFocus={() => setStep('body')} />
                         </FormControl>
-                        {getFieldStatusIcon('body')}
-                      </div>
+                         <p className="text-sm text-muted-foreground h-4">{getValues("body") ? "" : getFieldHelperText("body")}</p>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -348,7 +297,6 @@ export default function ComposePage() {
             <TooltipTrigger asChild>
               <Button 
                 type="button" 
-                onClick={handleMicControlClick} 
                 disabled={isProcessing || isPlaying}
                 size="icon"
                 className={cn(
@@ -357,6 +305,11 @@ export default function ComposePage() {
                     (isProcessing || isPlaying) && "cursor-not-allowed bg-muted"
                 )}
                 aria-label={micButtonTitle}
+                onMouseDown={startListening}
+                onMouseUp={stopListening}
+                onMouseLeave={stopListening}
+                onTouchStart={(e) => { e.preventDefault(); startListening();}}
+                onTouchEnd={stopListening}
               >
                 {isProcessing ? (
                   <Loader2 className="h-7 w-7 animate-spin" />

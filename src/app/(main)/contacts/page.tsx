@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -44,8 +45,8 @@ export default function ContactsPage() {
     };
 
     const handleEmailContact = (email: string, name: string) => {
-        play(`Starting an email to ${name}.`);
         router.push(`/compose?to=${encodeURIComponent(email)}`);
+        play(`Navigated to compose page to email ${name}.`);
     };
 
     const clearSearch = () => {
@@ -129,7 +130,7 @@ export default function ContactsPage() {
         return () => {
             window.removeEventListener('voice-command', handleCommand as EventListener);
         };
-    }, [play, filteredContacts, router, contacts]);
+    }, [play, filteredContacts, contacts]);
 
     return (
       <div className="p-4 md:p-6">

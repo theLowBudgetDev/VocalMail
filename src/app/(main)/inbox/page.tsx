@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -141,14 +142,15 @@ export default function InboxPage() {
     if (selectedEmail) {
       stop();
       router.push(`/compose?to=${encodeURIComponent(selectedEmail.from.email)}&subject=${encodeURIComponent(`Re: ${selectedEmail.subject}`)}`);
+      play("Navigated to compose page to reply.");
     }
-  }, [selectedEmail, router, stop]);
+  }, [selectedEmail, router, stop, play]);
 
   const handleUseSuggestion = React.useCallback((suggestion: string) => {
     if (selectedEmail) {
       stop();
-      play(`Replying with: ${suggestion}`);
       router.push(`/compose?to=${encodeURIComponent(selectedEmail.from.email)}&subject=${encodeURIComponent(`Re: ${selectedEmail.subject}`)}&body=${encodeURIComponent(suggestion)}`);
+      play(`Replying with: ${suggestion}`);
     }
   }, [selectedEmail, router, stop, play]);
 
