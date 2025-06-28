@@ -6,3 +6,4 @@ import '@/ai/flows/text-to-voice-conversion.ts';
 import '@/ai/flows/command-recognition.ts';
 import '@/ai/flows/reply-suggestion-flow.ts';
 import '@/ai/flows/summarize-email-flow.ts';
+import '@/ai/flows/email-categorization-flow.ts';

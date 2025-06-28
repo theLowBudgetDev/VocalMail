@@ -30,7 +30,6 @@ export const useTextToSpeech = () => {
       
       newAudio.play().catch(e => {
         console.error("Audio play failed", e)
-        // This often happens due to browser autoplay policies.
         toast({
           variant: "destructive",
           title: "Audio Playback Failed",
@@ -46,7 +45,6 @@ export const useTextToSpeech = () => {
       };
       newAudio.onerror = () => {
         console.error("Error playing audio: The audio source might be invalid or corrupted.");
-        // This can happen if the API returns bad data or there's a network issue.
          toast({
           variant: "destructive",
           title: "Audio Playback Error",
@@ -82,7 +80,6 @@ export const useTextToSpeech = () => {
           description: "You've exceeded the daily quota for voice generation. Please try again later.",
         });
       } else {
-        // Generic error for other API failures
         toast({
           variant: "destructive",
           title: "Voice Generation Failed",

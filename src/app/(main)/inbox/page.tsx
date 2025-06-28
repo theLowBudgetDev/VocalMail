@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { emails as allEmails, type Email } from "@/lib/data";
+import { emails as allEmails, type Email, emailCategories, type EmailCategory } from "@/lib/data";
 import { useTextToSpeech } from "@/hooks/use-text-to-speech";
 import { generateReplySuggestions } from "@/ai/flows/reply-suggestion-flow";
 import { summarizeEmail } from "@/ai/flows/summarize-email-flow";
@@ -22,18 +22,42 @@ import {
 } from "@/components/ui/tooltip"
 import { Card } from "@/components/ui/card";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Badge } from "@/components/ui/badge";
 
 export default function InboxPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isMobile = useIsMobile();
-  const [inboxEmails, setInboxEmails] = React.useState(() => allEmails.filter((email) => email.tag === 'inbox'));
+  const [inboxEmails, setInboxEmails] = React.useState(() => 
+    allEmails
+      .filter((email) => email.tag === 'inbox')
+      .sort((a, b) => (a.priority || 99) - (b.priority || 99) || new Date(b.date).getTime() - new Date(a.date).getTime())
+  );
   const [selectedEmailId, setSelectedEmailId] = React.useState<string | null>(null);
   const [suggestions, setSuggestions] = React.useState<string[]>([]);
   const [isGeneratingSuggestions, setIsGeneratingSuggestions] = React.useState(false);
   const [isSummarizing, setIsSummarizing] = React.useState(false);
 
   const { isPlaying, isGenerating, play, stop } = useTextToSpeech();
+
+  const handleReadCategory = React.useCallback((category: EmailCategory['id']) => {
+    const categoryInfo = emailCategories.find(c => c.id === category);
+    if (!categoryInfo) return;
+
+    const categoryEmails = inboxEmails.filter(e => e.category === category);
+    if (categoryEmails.length === 0) {
+      play(`You have no emails in the ${categoryInfo.name} category.`);
+      return;
+    }
+
+    const emailSnippets = categoryEmails.map((email, index) => 
+      `Email ${index + 1}: From ${email.from.name}, Subject: ${email.subject}.`
+    ).join(' ');
+    
+    const fullText = `You have ${categoryEmails.length} ${categoryInfo.name} emails. ${emailSnippets}`;
+    play(fullText);
+
+  }, [inboxEmails, play]);
 
   const handleReadList = React.useCallback(() => {
       if (isPlaying) {
@@ -44,11 +68,27 @@ export default function InboxPage() {
           play("Your inbox is empty.");
           return;
       }
-      const emailSnippets = inboxEmails.map((email, index) => 
-        `Email ${index + 1}: From ${email.from.name}, Subject: ${email.subject}.`
-      ).join(' ');
-      const fullText = `You have ${inboxEmails.length} emails. ${emailSnippets} To read an email, say 'read email' followed by its number.`;
-      play(fullText);
+
+      const counts = inboxEmails.reduce((acc, email) => {
+        const category = email.category || 'personal';
+        acc[category] = (acc[category] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      let summary = `You have ${inboxEmails.length} emails. `;
+      const sortedCategories = emailCategories.filter(c => counts[c.id] > 0);
+      
+      if (sortedCategories.length > 0) {
+        summary += sortedCategories.map(c => `${counts[c.id]} ${c.name}`).join(', ') + ". ";
+        summary += `You can say 'read' followed by a category name, like 'read urgent emails'. Or, say 'read email' and a number to open one.`
+      } else {
+         const emailSnippets = inboxEmails.map((email, index) => 
+          `Email ${index + 1}: From ${email.from.name}, Subject: ${email.subject}.`
+        ).join(' ');
+        summary += `${emailSnippets} To read an email, say 'read email' followed by its number.`;
+      }
+
+      play(summary);
   }, [inboxEmails, isPlaying, play, stop]);
   
   React.useEffect(() => {
@@ -87,7 +127,6 @@ export default function InboxPage() {
       setSuggestions(generatedSuggestions);
     } catch (error) {
       console.error("Failed to generate suggestions:", error);
-      // Not showing a toast to avoid interrupting the user flow
     } finally {
       setIsGeneratingSuggestions(false);
     }
@@ -114,8 +153,7 @@ export default function InboxPage() {
       if (isPlaying) {
         stop();
       }
-      setSuggestions([]); // Clear previous suggestions
-      // A short delay to allow any previous speech to stop gracefully
+      setSuggestions([]);
       setTimeout(() => {
         const textToRead = `Email from ${emailToRead.from.name}. Subject: ${emailToRead.subject}. Body: ${emailToRead.body}`;
         play(textToRead, () => handleGenerateSuggestions(emailToRead.body));
@@ -165,10 +203,15 @@ export default function InboxPage() {
 
   React.useEffect(() => {
     const handleCommand = (event: CustomEvent) => {
-      const { command, emailId, suggestionId } = event.detail;
+      const { command, emailId, suggestionId, category } = event.detail;
       switch (command) {
         case 'action_read_list':
           handleReadList();
+          break;
+        case 'action_read_category':
+          if (category) {
+            handleReadCategory(category);
+          }
           break;
         case 'action_read_email':
           if (emailId && emailId > 0 && emailId <= inboxEmails.length) {
@@ -205,7 +248,7 @@ export default function InboxPage() {
     return () => {
       window.removeEventListener('voice-command', handleCommand as EventListener);
     };
-  }, [handleReadList, handlePlayEmail, handleArchiveEmail, handleDeleteEmail, handleReplyEmail, inboxEmails, play, suggestions, handleUseSuggestion, handleSummarizeEmail]);
+  }, [handleReadList, handlePlayEmail, handleArchiveEmail, handleDeleteEmail, handleReplyEmail, inboxEmails, play, suggestions, handleUseSuggestion, handleSummarizeEmail, handleReadCategory]);
 
 
   React.useEffect(() => {
@@ -213,6 +256,20 @@ export default function InboxPage() {
       stop();
     }
   }, [selectedEmailId, stop]);
+
+  const groupedEmails = React.useMemo(() => {
+    const groups = emailCategories.map(c => ({ ...c, emails: [] as Email[] }));
+    
+    inboxEmails.forEach(email => {
+        const categoryId = email.category || 'personal';
+        const group = groups.find(g => g.id === categoryId);
+        if (group) {
+            group.emails.push(email);
+        }
+    });
+
+    return groups.filter(g => g.emails.length > 0);
+  }, [inboxEmails]);
 
   return (
     <TooltipProvider>
@@ -227,36 +284,44 @@ export default function InboxPage() {
           <Separator />
           <ScrollArea className="flex-1">
             {inboxEmails.length > 0 ? (
-              <ul className="divide-y p-2">
-                {inboxEmails.map((email, index) => (
-                  <li
-                    key={email.id}
-                    className={cn(
-                      "p-4 cursor-pointer hover:bg-muted/50 rounded-lg",
-                      selectedEmailId === email.id && "bg-muted"
-                    )}
-                    onClick={() => { stop(); setSelectedEmailId(email.id); setSuggestions([]); }}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="font-semibold"><span className="text-muted-foreground text-xs mr-2">{index+1}.</span>{email.from.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(email.date), {
-                          addSuffix: true,
-                        })}
-                      </div>
+                groupedEmails.map(group => (
+                    <div key={group.id} className="p-2">
+                        <h3 className="px-4 py-2 text-sm font-semibold text-muted-foreground">{group.name}</h3>
+                        <ul className="divide-y">
+                            {group.emails.map((email, index) => {
+                                const overallIndex = inboxEmails.findIndex(e => e.id === email.id);
+                                return (
+                                    <li
+                                        key={email.id}
+                                        className={cn(
+                                        "p-4 cursor-pointer hover:bg-muted/50 rounded-lg",
+                                        selectedEmailId === email.id && "bg-muted"
+                                        )}
+                                        onClick={() => { stop(); setSelectedEmailId(email.id); setSuggestions([]); }}
+                                    >
+                                        <div className="flex justify-between items-start">
+                                            <div className="font-semibold"><span className="text-muted-foreground text-xs mr-2">{overallIndex+1}.</span>{email.from.name}</div>
+                                            <div className="text-xs text-muted-foreground">
+                                                {formatDistanceToNow(new Date(email.date), {
+                                                addSuffix: true,
+                                                })}
+                                            </div>
+                                        </div>
+                                        <div className="text-sm">{email.subject}</div>
+                                        <div
+                                            className={cn(
+                                                "text-xs text-muted-foreground line-clamp-2",
+                                                !email.read && "font-bold text-foreground"
+                                            )}
+                                        >
+                                        {email.body}
+                                        </div>
+                                    </li>
+                                );
+                            })}
+                        </ul>
                     </div>
-                    <div className="text-sm">{email.subject}</div>
-                    <div
-                      className={cn(
-                        "text-xs text-muted-foreground line-clamp-2",
-                        !email.read && "font-bold text-foreground"
-                      )}
-                    >
-                      {email.body}
-                    </div>
-                  </li>
-                ))}
-              </ul>
+                ))
             ) : (
               <div className="text-center p-8 text-muted-foreground">No emails in inbox.</div>
             )}
@@ -270,7 +335,7 @@ export default function InboxPage() {
             <Card className="m-0 md:m-4 shadow-none md:shadow-lg h-full md:h-[calc(100%-2rem)] flex flex-col">
               <div className="p-4 border-b">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-2">
                     {isMobile && (
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -281,7 +346,17 @@ export default function InboxPage() {
                         <TooltipContent>Back to Inbox</TooltipContent>
                       </Tooltip>
                     )}
-                    <h3 className="text-xl font-bold">{selectedEmail.subject}</h3>
+                    <h3 className="text-xl font-bold line-clamp-1">{selectedEmail.subject}</h3>
+                     {selectedEmail.category && (
+                        <Badge variant="outline" style={{
+                            backgroundColor: `hsl(var(--${emailCategories.find(c=>c.id === selectedEmail.category)?.color}))`,
+                            color: `hsl(var(--${emailCategories.find(c=>c.id === selectedEmail.category)?.color}-foreground))`
+                         }}
+                         className="border-transparent"
+                         >
+                            {emailCategories.find(c=>c.id === selectedEmail.category)?.name}
+                        </Badge>
+                     )}
                   </div>
                   <div className="flex items-center gap-2">
                     <Tooltip>

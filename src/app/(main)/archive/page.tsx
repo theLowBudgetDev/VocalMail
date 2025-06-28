@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { emails, type Email } from "@/lib/data";
+import { emails as allEmails, type Email } from "@/lib/data";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
@@ -22,7 +22,7 @@ export default function ArchivePage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [selectedEmail, setSelectedEmail] = React.useState<Email | null>(null);
-    const archivedEmails = emails.filter((email) => email.tag === 'archive');
+    const [archivedEmails, setArchivedEmails] = React.useState(() => allEmails.filter(e => e.tag === 'archive'));
     const { play, stop, isPlaying } = useTextToSpeech();
 
     const handleReadList = React.useCallback(() => {

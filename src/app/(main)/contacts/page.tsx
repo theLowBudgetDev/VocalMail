@@ -142,7 +142,7 @@ export default function ContactsPage() {
         return () => {
             window.removeEventListener('voice-command', handleCommand as EventListener);
         };
-    }, [play, filteredContacts, contacts, handleReadList]);
+    }, [play, filteredContacts, contacts, handleReadList, handleEmailContact]);
 
     return (
       <div className="p-4 md:p-6">

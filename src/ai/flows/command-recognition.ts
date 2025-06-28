@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { emailCategories } from '@/lib/data';
 
 const RecognizeCommandInputSchema = z.object({
   audioDataUri: z
@@ -43,9 +44,15 @@ const validCommands = [
     "action_add_contact",
     "action_delete_contact",
     "action_search_email",
+    "action_read_category",
     "action_help",
     "unknown"
 ] as const;
+
+// Dynamically create a Zod enum from the emailCategories array
+const validCategories = emailCategories.map(c => c.id) as [string, ...string[]];
+const CategoryEnum = z.enum(validCategories);
+
 
 const RecognizeCommandOutputSchema = z.object({
   command: z.enum(validCommands).describe('The recognized command from the provided list.'),
@@ -53,6 +60,7 @@ const RecognizeCommandOutputSchema = z.object({
   suggestionId: z.number().optional().describe('The 1-based index of the smart reply suggestion to use, if applicable.'),
   contactName: z.string().optional().describe("The name of the contact to search for, add, or delete."),
   searchQuery: z.string().optional().describe("The user's search query for emails."),
+  category: CategoryEnum.optional().describe("The category of emails to read (e.g., 'urgent', 'promotions')."),
 });
 export type RecognizeCommandOutput = z.infer<typeof RecognizeCommandOutputSchema>;
 
@@ -92,6 +100,7 @@ Available commands:
 - "action_add_contact": To open the form to add a new contact. (Only on contacts page). (e.g., "add a new contact")
 - "action_delete_contact": To delete a contact by name. (Only on contacts page). (e.g., "delete Bob", "remove Charlie"). Extract the name into 'contactName'.
 - "action_search_email": To search all emails. (Global command). If the user says "search for emails about project budget", extract "project budget" into 'searchQuery'.
+- "action_read_category": To read emails from a specific category (e.g., "read urgent emails", "show me promotions"). The valid categories are: ${validCategories.join(", ")}. Extract the category name into the 'category' field.
 - "action_help": For help with available commands on the current page. (e.g., "help", "what can I do?")
 - "unknown": If the command is not one of the above, is ambiguous, or is general dictation.
 

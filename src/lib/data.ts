@@ -13,7 +13,25 @@ export type Email = {
   date: string;
   read: boolean;
   tag: 'inbox' | 'sent' | 'archive';
+  category: EmailCategory['id'];
+  priority: number;
 };
+
+export type EmailCategory = {
+    id: 'urgent' | 'important' | 'promotions' | 'social' | 'updates' | 'personal';
+    name: string;
+    color: 'destructive' | 'primary' | 'accent' | 'secondary' | 'muted' | 'foreground';
+};
+
+export const emailCategories: EmailCategory[] = [
+    { id: 'urgent', name: 'Urgent', color: 'destructive' },
+    { id: 'important', name: 'Important', color: 'primary' },
+    { id: 'personal', name: 'Personal', color: 'accent' },
+    { id: 'updates', name: 'Updates', color: 'secondary' },
+    { id: 'promotions', name: 'Promotions', color: 'muted' },
+    { id: 'social', name: 'Social', color: 'muted' },
+];
+
 
 export type Contact = {
     id: string;
@@ -23,7 +41,6 @@ export type Contact = {
 }
 
 export const emails: Email[] = [
-  // Existing emails
   {
     id: '1',
     from: { name: 'Alice', email: 'alice@example.com' },
@@ -32,6 +49,8 @@ export const emails: Email[] = [
     date: '2024-05-20T10:00:00Z',
     read: true,
     tag: 'inbox',
+    category: 'important',
+    priority: 2,
   },
   {
     id: '2',
@@ -41,6 +60,8 @@ export const emails: Email[] = [
     date: '2024-05-20T09:30:00Z',
     read: false,
     tag: 'inbox',
+    category: 'personal',
+    priority: 3,
   },
   {
     id: '3',
@@ -50,6 +71,8 @@ export const emails: Email[] = [
     date: '2024-05-19T15:45:00Z',
     read: true,
     tag: 'inbox',
+    category: 'updates',
+    priority: 4,
   },
   {
     id: '4',
@@ -59,6 +82,8 @@ export const emails: Email[] = [
     date: '2024-05-19T11:20:00Z',
     read: false,
     tag: 'inbox',
+    category: 'important',
+    priority: 2,
   },
   {
     id: '5',
@@ -69,6 +94,8 @@ export const emails: Email[] = [
     date: '2024-05-18T17:00:00Z',
     read: true,
     tag: 'sent',
+    category: 'important',
+    priority: 2,
   },
   {
     id: '6',
@@ -78,9 +105,9 @@ export const emails: Email[] = [
     date: '2024-05-18T14:30:00Z',
     read: true,
     tag: 'archive',
+    category: 'personal',
+    priority: 5,
   },
-
-  // New emails for testing
   {
     id: '7',
     from: { name: 'Frank', email: 'frank@example.com' },
@@ -89,6 +116,8 @@ export const emails: Email[] = [
     date: '2024-05-17T18:00:00Z',
     read: false,
     tag: 'inbox',
+    category: 'important',
+    priority: 2,
   },
   {
     id: '8',
@@ -99,6 +128,8 @@ export const emails: Email[] = [
     date: '2024-05-20T09:45:00Z',
     read: true,
     tag: 'sent',
+    category: 'personal',
+    priority: 3,
   },
   {
     id: '9',
@@ -108,6 +139,8 @@ export const emails: Email[] = [
     date: '2024-05-16T11:00:00Z',
     read: true,
     tag: 'archive',
+    category: 'updates',
+    priority: 5,
   },
   {
     id: '10',
@@ -117,6 +150,8 @@ export const emails: Email[] = [
     date: '2024-05-20T11:00:00Z',
     read: false,
     tag: 'inbox',
+    category: 'important',
+    priority: 2,
   },
   {
     id: '11',
@@ -126,6 +161,8 @@ export const emails: Email[] = [
     date: '2024-05-15T12:00:00Z',
     read: true,
     tag: 'archive',
+    category: 'updates',
+    priority: 4,
   },
   {
     id: '12',
@@ -136,6 +173,8 @@ export const emails: Email[] = [
     date: '2024-05-17T16:20:00Z',
     read: true,
     tag: 'sent',
+    category: 'important',
+    priority: 2,
   },
    {
     id: '13',
@@ -145,6 +184,8 @@ export const emails: Email[] = [
     date: '2024-05-20T14:00:00Z',
     read: false,
     tag: 'inbox',
+    category: 'important',
+    priority: 2,
   },
   {
     id: '14',
@@ -154,6 +195,8 @@ export const emails: Email[] = [
     date: '2024-05-14T08:00:00Z',
     read: true,
     tag: 'archive',
+    category: 'urgent',
+    priority: 1,
   },
   {
     id: '15',
@@ -163,6 +206,19 @@ export const emails: Email[] = [
     date: '2024-05-18T10:00:00Z',
     read: false,
     tag: 'inbox',
+    category: 'important',
+    priority: 2,
+  },
+   {
+    id: '16',
+    from: { name: 'Shopify', email: 'news@shopify.com' },
+    subject: 'Black Friday Deals are here!',
+    body: 'Don\'t miss out on our biggest sale of the year. Get up to 50% off on all products. Shop now!',
+    date: '2024-05-20T18:00:00Z',
+    read: false,
+    tag: 'inbox',
+    category: 'promotions',
+    priority: 5,
   },
 ];
 

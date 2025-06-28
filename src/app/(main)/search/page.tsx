@@ -48,16 +48,16 @@ function SearchResultsPage() {
         const emailSnippets = searchResults.map((email, index) => 
             `Email ${index + 1}: ${email.tag === 'sent' ? 'To' : 'From'} ${email.tag === 'sent' ? email.to?.name : email.from.name}, Subject: ${email.subject}.`
         ).join(' ');
-        const fullText = `You have ${searchResults.length} search results. ${emailSnippets}`;
+        const fullText = `Found ${searchResults.length} search results. ${emailSnippets}`;
         play(fullText);
     }, [searchResults, play, query]);
 
     React.useEffect(() => {
         setInputValue(query);
         if (query) {
-            play(`Showing ${searchResults.length} results for your search: ${query}.`);
+            handleReadList();
         }
-    }, [query, searchResults.length, play]);
+    }, [query, handleReadList]);
 
      React.useEffect(() => {
         const autorun = searchParams.get('autorun');
