@@ -28,6 +28,7 @@ const validCommands = [
     "navigate_contacts",
     "navigate_compose",
     "navigate_search",
+    "navigate_help",
     "action_read_list",
     "action_read_email",
     "action_summarize_email",
@@ -76,6 +77,7 @@ Available commands:
 - "navigate_contacts": To go to the contacts page. (e.g., "show my contacts")
 - "navigate_compose": To go to the new email page. (e.g., "compose a new email", "new message")
 - "navigate_search": To go to the email search page. (e.g., "go to search")
+- "navigate_help": To go to the help page, which lists all available commands. (e.g., "go to help", "what are all the commands?")
 - "action_read_list": To read a summary of the items in the current view (emails, contacts, or search results). (e.g., "read the list", "list my emails")
 - "action_read_email": To read a specific email by its number from the current list. If the user says "read email one", "open message 3", extract the number and put it in the 'emailId' field. The ID is 1-based.
 - "action_summarize_email": To get a summary of the currently selected email. (Only in inbox). (e.g., "summarize this")
@@ -90,7 +92,7 @@ Available commands:
 - "action_add_contact": To open the form to add a new contact. (Only on contacts page). (e.g., "add a new contact")
 - "action_delete_contact": To delete a contact by name. (Only on contacts page). (e.g., "delete Bob", "remove Charlie"). Extract the name into 'contactName'.
 - "action_search_email": To search all emails. (Global command). If the user says "search for emails about project budget", extract "project budget" into 'searchQuery'.
-- "action_help": For help with available commands. (e.g., "help", "what can I do?")
+- "action_help": For help with available commands on the current page. (e.g., "help", "what can I do?")
 - "unknown": If the command is not one of the above, is ambiguous, or is general dictation.
 
 Transcribe the audio and determine the most appropriate command.

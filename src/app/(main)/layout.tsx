@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -11,6 +12,7 @@ import {
   FilePenLine,
   Mail,
   Search,
+  HelpCircle,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -28,6 +30,13 @@ import {
 import { VoiceCommander } from "@/components/voice-commander";
 import { ModeToggle } from "@/components/mode-toggle";
 import { UserNav } from "@/components/user-nav";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
 
 const navItems = [
   { href: "/inbox", label: "Inbox", icon: Inbox },
@@ -86,6 +95,20 @@ export default function VocalMailLayout({
             <SidebarTrigger className="md:hidden" />
             <h1 className="text-xl font-semibold md:text-2xl capitalize">{pathname.split(/[\/-]/).pop()?.replace(/\[id\]/,'') || 'Inbox'}</h1>
             <div className="ml-auto flex items-center gap-2">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" asChild>
+                        <Link href="/help">
+                          <HelpCircle />
+                        </Link>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Help</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <ModeToggle />
                 <UserNav />
             </div>
