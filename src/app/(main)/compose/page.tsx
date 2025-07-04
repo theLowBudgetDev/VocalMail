@@ -35,10 +35,12 @@ const emailSchema = z.object({
 });
 
 type CompositionStep = "to" | "subject" | "body" | "review" | "correcting";
+type CompositionFlow = "initial" | "correction";
 
 export default function ComposePage() {
   const [isSending, setIsSending] = React.useState(false);
   const [step, setStep] = React.useState<CompositionStep>("to");
+  const [compositionFlow, setCompositionFlow] = React.useState<CompositionFlow>('initial');
   const [isListening, setIsListening] = React.useState(false);
   const [isProcessing, setIsProcessing] = React.useState(false);
 
@@ -73,6 +75,7 @@ export default function ComposePage() {
     play("Email sent successfully.", () => {
         reset({ to: "", subject: "", body: "" });
         setStep("to");
+        setCompositionFlow("initial");
     });
   }, [reset, toast, play]);
 
@@ -108,6 +111,7 @@ export default function ComposePage() {
         handleProofread();
         break;
       case 'action_correct_email':
+        setCompositionFlow('correction');
         if (correctionField) {
           setStep(correctionField);
         } else {
@@ -144,12 +148,15 @@ export default function ComposePage() {
         }
         
         // Transition to the next step
-        if (step === 'to') {
-          setStep('subject');
+        if (compositionFlow === 'correction') {
+            setStep('review');
+            setCompositionFlow('initial');
+        } else if (step === 'to') {
+            setStep('subject');
         } else if (step === 'subject') {
-          setStep('body');
+            setStep('body');
         } else if (step === 'body') {
-          setStep('review');
+            setStep('review');
         }
       }
     } catch (error) {
@@ -158,7 +165,7 @@ export default function ComposePage() {
     } finally {
         setIsProcessing(false);
     }
-  }, [step, handleTranscription, toast, handleCommand, play]);
+  }, [step, handleTranscription, toast, handleCommand, play, compositionFlow]);
 
   const startListening = React.useCallback(async () => {
     if (isListening || isProcessing || isPlaying) return;
@@ -315,7 +322,7 @@ export default function ComposePage() {
                     <FormItem>
                       <FormLabel>To</FormLabel>
                         <FormControl>
-                          <Input placeholder="recipient@example.com" {...field} className={cn(step === 'to' && 'border-primary ring-2 ring-primary')} onFocus={() => setStep('to')} />
+                          <Input placeholder="recipient@example.com" {...field} className={cn(step === 'to' && 'border-primary ring-2 ring-primary')} />
                         </FormControl>
                         <p className="text-sm text-muted-foreground h-4">{getFieldHelperText("to")}</p>
                       <FormMessage />
@@ -329,7 +336,7 @@ export default function ComposePage() {
                     <FormItem>
                       <FormLabel>Subject</FormLabel>
                         <FormControl>
-                          <Input placeholder="Email subject" {...field} className={cn(step === 'subject' && 'border-primary ring-2 ring-primary')} onFocus={() => setStep('subject')} />
+                          <Input placeholder="Email subject" {...field} className={cn(step === 'subject' && 'border-primary ring-2 ring-primary')} />
                         </FormControl>
                          <p className="text-sm text-muted-foreground h-4">{getFieldHelperText("subject")}</p>
                       <FormMessage />
@@ -343,7 +350,7 @@ export default function ComposePage() {
                     <FormItem>
                       <FormLabel>Body</FormLabel>
                         <FormControl>
-                          <Textarea placeholder="Dictate your email, or use the microphone button below..." className={cn("min-h-[200px] resize-y", step === 'body' && 'border-primary ring-2 ring-primary')} {...field} onFocus={() => setStep('body')} />
+                          <Textarea placeholder="Dictate your email, or use the microphone button below..." className={cn("min-h-[200px] resize-y", step === 'body' && 'border-primary ring-2 ring-primary')} {...field} />
                         </FormControl>
                          <p className="text-sm text-muted-foreground h-4">{getFieldHelperText("body")}</p>
                       <FormMessage />
@@ -406,3 +413,5 @@ export default function ComposePage() {
     </>
   );
 }
+
+    
