@@ -15,7 +15,8 @@ const VoiceToTextConversionInputSchema = z.object({
     .string()
     .describe(
       "Audio data URI of the spoken message, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
-    ),
+    ).optional(),
+  transcription: z.string().optional().describe("A raw transcription to be cleaned."),
   userSpeakingHabits: z
     .string()
     .optional()
@@ -48,9 +49,18 @@ const prompt = ai.definePrompt({
   prompt: `You are an AI assistant that transcribes dictated text for an email. Your task is to convert the user's spoken words into a clean, well-formatted string based on the context.
 
 Context: {{{context}}}
+{{#if audioDataUri}}
+Audio for Transcription: {{media url=audioDataUri}}
+{{/if}}
+{{#if transcription}}
+Text for Cleaning: {{{transcription}}}
+{{/if}}
+{{#if userSpeakingHabits}}
+User Speaking Habits for context: {{{userSpeakingHabits}}}
+{{/if}}
 
 Instructions:
-1. Accurately transcribe the primary message from the main speaker.
+1. Accurately transcribe the primary message.
 2. Ignore any background noise, side conversations, or non-verbal sounds.
 3. Remove filler words (e.g., "um", "uh", "like").
 4. Based on the context, format the output:
@@ -58,11 +68,6 @@ Instructions:
    - If context is 'subject': The output should be a single line of text. Use title case capitalization where appropriate.
    - If context is 'body': Correct grammatical errors and improve sentence structure for clarity. The output can be multi-paragraph.
 5. Do not include any introductory or concluding remarks from yourself; output only the final, clean transcription.
-
-Audio for Transcription: {{media url=audioDataUri}}
-{{#if userSpeakingHabits}}
-User Speaking Habits for context: {{{userSpeakingHabits}}}
-{{/if}}
 
 Cleaned Transcription:`,
 });
@@ -74,6 +79,9 @@ const voiceToTextConversionFlow = ai.defineFlow(
     outputSchema: VoiceToTextConversionOutputSchema,
   },
   async input => {
+    if (!input.audioDataUri && !input.transcription) {
+      throw new Error("Either audioDataUri or transcription must be provided.");
+    }
     const {output} = await prompt(input);
     return output!;
   }

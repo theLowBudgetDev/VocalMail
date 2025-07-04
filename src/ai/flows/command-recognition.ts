@@ -47,6 +47,9 @@ const validCommands = [
     "action_search_email",
     "action_read_category",
     "action_help",
+    "action_focus_to",
+    "action_focus_subject",
+    "action_focus_body",
     "unknown"
 ] as const;
 
@@ -79,7 +82,19 @@ const prompt = ai.definePrompt({
   output: {schema: RecognizeCommandOutputSchema},
   prompt: `You are a voice command interpreter for the VocalMail email application. Your task is to understand the user's spoken command and map it to a single, specific command from the available list. Also, provide a direct transcription of what the user said.
 
-The user is currently on the '{{currentPath}}' page. Use this context to resolve ambiguity. If the user is on the '/compose' page, they are likely dictating content for a field. In this case, the command should be 'unknown' and the 'transcription' field should contain their dictated text. Only recognize a specific command on the compose page if it's very clear (like "send email" or "make a correction").
+The user is currently on the '{{currentPath}}' page. Use this context to resolve ambiguity.
+
+**Compose Page Logic (if currentPath is '/compose'):**
+Your primary goal on the compose page is to distinguish between **dictation** for a field and a **command** to change focus or perform an action.
+- **Specific Commands:** The user can issue clear commands.
+  - "recipient", "to", "to field" -> \`action_focus_to\`
+  - "subject", "subject line" -> \`action_focus_subject\`
+  - "body", "message", "compose body" -> \`action_focus_body\`
+  - "proofread", "read it back" -> \`action_proofread_email\`
+  - "make a correction", "change something" -> \`action_correct_email\` (optionally with \`correctionField\`)
+  - "send", "send email" -> \`action_send\`
+  - "help" -> \`action_help\`
+- **Dictation (Default):** If the user's speech does **not** clearly match one of the commands above, you MUST assume it is dictation for the currently active field. In this case, set the command to \`unknown\` and provide the full transcription in the \`transcription\` field.
 
 Available commands:
 - "navigate_inbox": To go to the inbox page. (e.g., "go to inbox", "show my mail")
@@ -105,6 +120,9 @@ Available commands:
 - "action_delete_contact": To delete a contact by name. (Only on contacts page). (e.g., "delete Bob", "remove Charlie"). Extract the name into 'contactName'.
 - "action_search_email": To search all emails. (Global command). If the user says "search for emails about project budget", extract "project budget" into 'searchQuery'.
 - "action_read_category": To read emails from a specific category (e.g., "read urgent emails", "show me promotions"). The valid categories are: ${validCategories.join(", ")}. Extract the category name into the 'category' field.
+- "action_focus_to": To focus on the recipient field for dictation. (e.g., "recipient", "edit to field")
+- "action_focus_subject": To focus on the subject field for dictation. (e.g., "subject", "edit the subject")
+- "action_focus_body": To focus on the body field for dictation. (e.g., "body", "edit the message")
 - "action_help": For help with available commands on the current page. (e.g., "help", "what can I do?")
 - "unknown": If the command is not one of the above, is ambiguous, or is general dictation.
 

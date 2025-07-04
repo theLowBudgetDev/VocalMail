@@ -35,12 +35,10 @@ const emailSchema = z.object({
 });
 
 type CompositionStep = "to" | "subject" | "body" | "review" | "correcting";
-type CompositionFlow = "initial" | "correction";
 
 export default function ComposePage() {
   const [isSending, setIsSending] = React.useState(false);
   const [step, setStep] = React.useState<CompositionStep>("to");
-  const [compositionFlow, setCompositionFlow] = React.useState<CompositionFlow>('initial');
   const [isListening, setIsListening] = React.useState(false);
   const [isProcessing, setIsProcessing] = React.useState(false);
 
@@ -58,13 +56,33 @@ export default function ComposePage() {
   });
   const { setValue, handleSubmit, reset, getValues, trigger, formState: { errors } } = form;
 
-  const handleTranscription = React.useCallback((field: "to" | "subject" | "body", text: string) => {
-    if (field === 'body') {
-      setValue(field, getValues("body") + text + " ", { shouldValidate: true });
-    } else {
-      setValue(field, text, { shouldValidate: true });
+  const handleTranscription = React.useCallback(async (text: string) => {
+    if (!['to', 'subject', 'body'].includes(step)) return;
+
+    const currentField = step as 'to' | 'subject' | 'body';
+
+    setIsProcessing(true);
+    try {
+      const result = await voiceToTextConversion({
+        audioDataUri: '', // This is a placeholder, actual audio is processed before
+        transcription: text,
+        context: currentField,
+      });
+
+      if (result.transcription) {
+        if (currentField === 'body') {
+            setValue(currentField, getValues("body") + result.transcription + " ", { shouldValidate: true });
+        } else {
+            setValue(currentField, result.transcription, { shouldValidate: true });
+        }
+      }
+    } catch (error) {
+       console.error("Transcription failed:", error);
+       toast({ variant: "destructive", title: "Transcription Failed", description: "I had trouble converting that to text. Let's try that again." });
+    } finally {
+        setIsProcessing(false);
     }
-  }, [setValue, getValues]);
+  }, [step, setValue, getValues, toast]);
 
   const onSubmit = React.useCallback(async (data: z.infer<typeof emailSchema>) => {
     setIsSending(true);
@@ -75,7 +93,6 @@ export default function ComposePage() {
     play("Email sent successfully.", () => {
         reset({ to: "", subject: "", body: "" });
         setStep("to");
-        setCompositionFlow("initial");
     });
   }, [reset, toast, play]);
 
@@ -85,7 +102,6 @@ export default function ComposePage() {
     if (!isValid) {
       const errorMessages = Object.values(errors).map(e => e.message).join(' ');
       play(`There are some errors. ${errorMessages}. You can say 'make a correction' to fix them.`);
-      setStep("review");
       return;
     }
     const { to, subject, body } = getValues();
@@ -101,71 +117,59 @@ export default function ComposePage() {
     }
   }, []);
 
-  const handleCommand = React.useCallback((result: RecognizeCommandOutput) => {
-    const { command, correctionField } = result;
+  const handleRecognitionResult = React.useCallback((result: RecognizeCommandOutput) => {
+    const { command, transcription, correctionField } = result;
+
     switch(command) {
-      case 'action_send':
-        handleSubmit(onSubmit)();
-        break;
-      case 'action_proofread_email':
-        handleProofread();
-        break;
-      case 'action_correct_email':
-        setCompositionFlow('correction');
-        if (correctionField) {
-          setStep(correctionField);
-        } else {
-          setStep('correcting');
-        }
-        break;
-      case 'action_help':
-        play("You are in the compose flow. Hold the microphone button to dictate for the highlighted field. After filling the body, the email will be proofread. You can then say 'send email' or 'make a correction'.");
-        break;
-      case 'unknown':
-        // This case is handled in processAudio for dictation
-        break;
-      default:
-         play(`Sorry, the command ${command.replace(/_/g, ' ')} is not available here.`);
+        case 'action_focus_to':
+            setStep('to');
+            break;
+        case 'action_focus_subject':
+            setStep('subject');
+            break;
+        case 'action_focus_body':
+            setStep('body');
+            break;
+        case 'action_send':
+            setStep('review');
+            handleSubmit(onSubmit)();
+            break;
+        case 'action_proofread_email':
+            setStep('review');
+            break;
+        case 'action_correct_email':
+            if (correctionField) {
+                setStep(correctionField);
+            } else {
+                setStep('correcting');
+            }
+            break;
+        case 'action_help':
+            play("You are composing an email. Say 'recipient', 'subject', or 'body' to switch fields. Hold the mic to dictate. Say 'proofread' when you are finished.");
+            break;
+        case 'unknown':
+            if (transcription) {
+                handleTranscription(transcription);
+            }
+            break;
+        default:
+             play(`Sorry, the command ${command.replace(/_/g, ' ')} is not available here.`);
     }
-  }, [handleSubmit, onSubmit, handleProofread, play]);
+  }, [handleSubmit, onSubmit, play, handleTranscription]);
+
 
   const processAudio = React.useCallback(async (audioDataUri: string) => {
     setIsProcessing(true);
     try {
-      if (step === 'review' || step === 'correcting') {
-        // We expect a command
         const result = await recognizeCommand({ audioDataUri, currentPath: '/compose' });
-        handleCommand(result);
-      } else { 
-        // We are dictating a field
-        const result = await voiceToTextConversion({
-          audioDataUri,
-          context: step,
-        });
-
-        if (result.transcription) {
-          handleTranscription(step, result.transcription);
-        }
-        
-        // Transition to the next step
-        if (compositionFlow === 'correction') {
-            setStep('review');
-            setCompositionFlow('initial');
-        } else if (step === 'to') {
-            setStep('subject');
-        } else if (step === 'subject') {
-            setStep('body');
-        } else if (step === 'body') {
-            setStep('review');
-        }
-      }
+        handleRecognitionResult(result);
     } catch (error) {
          console.error("Processing failed:", error);
          toast({ variant: "destructive", title: "Processing Failed", description: "I had trouble understanding. Let's try that again." });
     } finally {
         setIsProcessing(false);
     }
-  }, [step, handleTranscription, toast, handleCommand, play, compositionFlow]);
+  }, [handleRecognitionResult, toast]);
 
   const startListening = React.useCallback(async () => {
     if (isListening || isProcessing || isPlaying) return;
@@ -213,15 +217,16 @@ export default function ComposePage() {
   // Handle step transitions and audio prompts
   React.useEffect(() => {
     if(isSending || isPlaying || isProcessing) return;
+    
     switch(step) {
         case 'to':
-            play("First, who is the recipient?");
+            play("Recipient field is active. Hold the mic to dictate, or say 'subject' or 'body' to switch.");
             break;
         case 'subject':
-            play("Got it. Now, what is the subject?");
+            play("Subject field is active.");
             break;
         case 'body':
-            play("Great. Please dictate the body of the email.");
+            play("Body field is active.");
             break;
         case 'review':
             handleProofread();
@@ -289,7 +294,10 @@ export default function ComposePage() {
   
   const getFieldHelperText = (field: CompositionStep) => {
     if (step === field) {
-        return isListening ? "Listening..." : isProcessing ? "Processing..." : `Hold mic to dictate ${field === 'to' ? 'recipient' : field}.`;
+        if (isListening) return "Listening...";
+        if (isProcessing) return "Processing...";
+        if (isPlaying) return "Speaking...";
+        return `Hold mic to dictate, or say 'proofread' when done.`;
     }
     return "";
   }
@@ -300,7 +308,7 @@ export default function ComposePage() {
     ? "Processing..."
     : isPlaying
     ? "Speaking..."
-    : "Hold to dictate";
+    : "Hold to dictate / speak command";
 
   return (
     <>
@@ -309,7 +317,7 @@ export default function ComposePage() {
           <CardHeader>
             <CardTitle>Compose Email</CardTitle>
             <CardDescription>
-              Follow the audio prompts and hold the microphone button to dictate each field.
+              Hold the microphone to dictate for the active field or to issue a command like 'subject' or 'proofread'.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -365,7 +373,7 @@ export default function ComposePage() {
                       <><Send className="mr-2 h-4 w-4" />Send Email</>
                     )}
                   </Button>
-                  <Button type="button" variant="outline" onClick={handleProofread} disabled={isInteracting} size="lg" className="w-full sm:w-auto">
+                   <Button type="button" variant="outline" onClick={() => setStep('review')} disabled={isInteracting} size="lg" className="w-full sm:w-auto">
                       <FileText className="mr-2 h-4 w-4" />
                       Proofread
                   </Button>
@@ -413,5 +421,3 @@ export default function ComposePage() {
     </>
   );
 }
-
-    
