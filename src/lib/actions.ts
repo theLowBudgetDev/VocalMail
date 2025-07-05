@@ -4,9 +4,6 @@
 import { revalidatePath } from 'next/cache';
 import { db } from './db';
 import type { User, Email, Contact } from './data';
-<<<<<<< HEAD
-<<<<<<< HEAD
-import { categorizeEmail } from '@/ai/flows/email-categorization-flow';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
@@ -107,11 +104,6 @@ export async function getLoggedInUser(): Promise<User | null> {
 
 
 // --- DATA ACTIONS ---
-=======
->>>>>>> d9b34e4 (remove the email priority from the system.)
-=======
->>>>>>> d9b34e4 (remove the email priority from the system.)
-
 export async function getUsers(): Promise<User[]> {
     return db.prepare('SELECT * FROM users').all() as User[];
 }
@@ -219,15 +211,7 @@ export async function searchEmails(userId: number, searchTerm: string): Promise<
         subject: e.subject,
         body: e.body,
         sentAt: e.sentAt,
-<<<<<<< HEAD
-<<<<<<< HEAD
-        category: e.category,
         status: e.status, // Use the status from the query
-=======
-=======
->>>>>>> d9b34e4 (remove the email priority from the system.)
-        tag: e.tag,
->>>>>>> d9b34e4 (remove the email priority from the system.)
         senderId: e.senderId,
         senderName: e.senderName,
         senderEmail: e.senderEmail,
@@ -264,7 +248,7 @@ export async function archiveEmail(emailId: number, userId: number) {
     revalidatePath('/archive');
 }
 
-export async function deleteUserEmail(emailId: number, userId: number, type: 'inbox' | 'archive' | 'sent' | 'search', originalTag?: string) {
+export async function deleteUserEmail(emailId: number, userId: number, type: 'inbox' | 'archive' | 'sent' | 'search', originalStatus?: string) {
     // If it's a sent email, we soft delete from the sender's view.
     if (type === 'sent') {
         const stmt = db.prepare("UPDATE emails SET senderStatus = 'deleted' WHERE id = ? AND senderId = ?");
@@ -276,8 +260,8 @@ export async function deleteUserEmail(emailId: number, userId: number, type: 'in
         stmt.run(emailId, userId);
     }
     // For search, we need to know if the user is the sender or receiver
-    else if (type === 'search' && originalTag) {
-         if (originalTag === 'sent') {
+    else if (type === 'search' && originalStatus) {
+         if (originalStatus === 'sent') {
             const stmt = db.prepare("UPDATE emails SET senderStatus = 'deleted' WHERE id = ? AND senderId = ?");
             stmt.run(emailId, userId);
          } else {

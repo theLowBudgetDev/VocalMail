@@ -20,16 +20,7 @@ export const emails = [
         body: 'Team, excited to kick off Project Phoenix! The initial documents are attached. Please review them before our meeting on Monday. Let\'s make this a success!',
         date: '2024-05-20T10:00:00Z',
         read: false,
-<<<<<<< HEAD
-<<<<<<< HEAD
         status: 'inbox',
-        category: 'important',
-=======
-        tag: 'inbox',
->>>>>>> d9b34e4 (remove the email priority from the system.)
-=======
-        tag: 'inbox',
->>>>>>> d9b34e4 (remove the email priority from the system.)
     },
     {
         from: 'charlie.davis@example.com',
@@ -38,16 +29,7 @@ export const emails = [
         body: 'Thanks, Alice. The documents look great. I have a few questions about the timeline, which I\'ll bring up on Monday. Looking forward to it.',
         date: '2024-05-20T11:30:00Z',
         read: false,
-<<<<<<< HEAD
-<<<<<<< HEAD
         status: 'inbox',
-        category: 'important',
-=======
-        tag: 'inbox',
->>>>>>> d9b34e4 (remove the email priority from the system.)
-=======
-        tag: 'inbox',
->>>>>>> d9b34e4 (remove the email priority from the system.)
     },
     {
         from: 'frank.miller@example.com',
@@ -56,16 +38,7 @@ export const emails = [
         body: 'All looks good on my end. I\'ve already started on my assigned tasks.',
         date: '2024-05-20T12:00:00Z',
         read: true,
-<<<<<<< HEAD
-<<<<<<< HEAD
         status: 'inbox',
-        category: 'important',
-=======
-        tag: 'inbox',
->>>>>>> d9b34e4 (remove the email priority from the system.)
-=======
-        tag: 'inbox',
->>>>>>> d9b34e4 (remove the email priority from the system.)
     },
     {
         from: 'grace.lee@example.com',
@@ -74,16 +47,7 @@ export const emails = [
         body: 'Hi Alice, here are the latest design mockups for your review. Please provide feedback by EOD tomorrow. Thanks!',
         date: '2024-05-19T15:00:00Z',
         read: true,
-<<<<<<< HEAD
-<<<<<<< HEAD
         status: 'archive',
-        category: 'important',
-=======
-        tag: 'archive',
->>>>>>> d9b34e4 (remove the email priority from the system.)
-=======
-        tag: 'archive',
->>>>>>> d9b34e4 (remove the email priority from the system.)
     },
     {
         from: 'bob.johnson@example.com',
@@ -92,16 +56,7 @@ export const emails = [
         body: 'Hey guys, are we still on for lunch this Friday? Let me know!',
         date: '2024-05-21T09:00:00Z',
         read: false,
-<<<<<<< HEAD
-<<<<<<< HEAD
         status: 'inbox',
-        category: 'personal',
-=======
-        tag: 'inbox',
->>>>>>> d9b34e4 (remove the email priority from the system.)
-=======
-        tag: 'inbox',
->>>>>>> d9b34e4 (remove the email priority from the system.)
     },
     {
         from: 'charlie.davis@example.com',
@@ -110,15 +65,6 @@ export const emails = [
         body: 'I\'m in!',
         date: '2024-05-21T09:15:00Z',
         read: false,
-<<<<<<< HEAD
-<<<<<<< HEAD
         status: 'inbox',
-        category: 'personal',
-=======
-        tag: 'inbox',
->>>>>>> d9b34e4 (remove the email priority from the system.)
-=======
-        tag: 'inbox',
->>>>>>> d9b34e4 (remove the email priority from the system.)
     }
 ];
