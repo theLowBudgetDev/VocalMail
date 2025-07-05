@@ -16,6 +16,7 @@ VocalMail is a final year project that re-imagines the email experience for visu
 
 - **Frontend:** Next.js (App Router), React, TypeScript
 - **Styling:** Tailwind CSS, ShadCN UI
+- **Database:** SQLite with `better-sqlite3`
 - **Generative AI:** Google AI Platform via Genkit
 - **UI/UX:** High-contrast, minimalist design focused on accessibility.
 
@@ -38,11 +39,18 @@ VocalMail is a final year project that re-imagines the email experience for visu
     ```bash
     npm install
     ```
+    After installation, a `postinstall` script will automatically run to set up the local SQLite database (`vocalmail.db`) and populate it with mock data. This ensures the application is ready to run immediately.
 
 3.  **Set up environment variables:**
     Create a file named `.env` in the root of the project and add your Google AI API key:
     ```
     GOOGLE_API_KEY=your_google_ai_api_key_here
+    ```
+
+4.  **(Optional) Manually Reset the Database:**
+    If you ever want to reset the database to its initial state, you can run the setup script manually:
+    ```bash
+    npm run db:setup
     ```
 
 ### Running the Application
