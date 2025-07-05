@@ -54,8 +54,12 @@ if (fs.existsSync(dbPath)) {
         body TEXT NOT NULL,
         sentAt TEXT NOT NULL,
         senderStatus TEXT NOT NULL DEFAULT 'sent', -- 'sent' or 'deleted'
+<<<<<<< HEAD
         category TEXT NOT NULL,
         FOREIGN KEY (senderId) REFERENCES users(id) ON DELETE CASCADE
+=======
+        FOREIGN KEY (senderId) REFERENCES users(id)
+>>>>>>> d9b34e4 (remove the email priority from the system.)
     );
 
     CREATE TABLE IF NOT EXISTS email_recipients (
@@ -147,14 +151,14 @@ if (!dbExists) {
   }
   console.log('Contacts seeded successfully.');
 
-  const insertEmail = db.prepare('INSERT INTO emails (senderId, subject, body, sentAt, category) VALUES (?, ?, ?, ?, ?)');
+  const insertEmail = db.prepare('INSERT INTO emails (senderId, subject, body, sentAt) VALUES (?, ?, ?, ?)');
   const insertRecipient = db.prepare('INSERT INTO email_recipients (emailId, recipientId, status, read) VALUES (?, ?, ?, ?)');
 
   for (const email of emails) {
       const senderId = getUserId(email.from);
       if (!senderId) continue;
 
-      const emailResult = insertEmail.run(senderId, email.subject, email.body, email.date, email.category);
+      const emailResult = insertEmail.run(senderId, email.subject, email.body, email.date);
       const emailId = emailResult.lastInsertRowid as number;
       
       for (const recipientEmail of email.to) {

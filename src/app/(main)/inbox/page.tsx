@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { emailCategories, type EmailCategory, type Email } from "@/lib/data";
+import type { Email } from "@/lib/data";
 import { useTextToSpeech } from "@/hooks/use-text-to-speech";
 import { generateReplySuggestions } from "@/ai/flows/reply-suggestion-flow";
 import { summarizeEmail } from "@/ai/flows/summarize-email-flow";
@@ -22,7 +22,6 @@ import {
 } from "@/components/ui/tooltip"
 import { Card } from "@/components/ui/card";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Badge } from "@/components/ui/badge";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { getInboxEmails, markEmailAsRead, archiveEmail, deleteUserEmail } from "@/lib/actions";
 import { toast } from "@/hooks/use-toast";
@@ -60,56 +59,40 @@ export default function InboxPage() {
       fetchEmails();
   }, [fetchEmails]);
 
-
-  const handleReadCategory = React.useCallback((category: EmailCategory['id']) => {
-    const categoryInfo = emailCategories.find(c => c.id === category);
-    if (!categoryInfo) return;
-
-    const categoryEmails = inboxEmails.filter(e => e.category === category);
-    if (categoryEmails.length === 0) {
-      play(`You have no emails in the ${categoryInfo.name} category.`);
+  const handleReadList = React.useCallback(() => {
+    if (isPlaying) {
+      stop();
+      return;
+    }
+    if (inboxEmails.length === 0) {
+      play("Your inbox is empty.");
       return;
     }
 
-    const emailSnippets = categoryEmails.map((email, index) => 
-      `Email ${index + 1}: From ${email.senderName}, Subject: ${email.subject}.`
-    ).join(' ');
-    
-    const fullText = `You have ${categoryEmails.length} ${categoryInfo.name} emails. ${emailSnippets}`;
-    play(fullText);
+    const unreadCount = inboxEmails.filter((e) => !e.read).length;
+    let summary = "";
 
-  }, [inboxEmails, play]);
+    if (unreadCount > 0) {
+      summary += `You have ${unreadCount} unread email${
+        unreadCount === 1 ? "" : "s"
+      }. `;
+    }
 
-  const handleReadList = React.useCallback(() => {
-      if (isPlaying) {
-          stop();
-          return;
-      }
-      if (inboxEmails.length === 0) {
-          play("Your inbox is empty.");
-          return;
-      }
+    summary += `You have a total of ${inboxEmails.length} email${
+      inboxEmails.length === 1 ? "" : "s"
+    } in your inbox. `;
 
-      const counts = inboxEmails.reduce((acc, email) => {
-        const category = email.category || 'personal';
-        acc[category] = (acc[category] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
+    const emailSnippets = inboxEmails
+      .map(
+        (email, index) =>
+          `Email ${index + 1}: From ${email.senderName}, Subject: ${
+            email.subject
+          }.`
+      )
+      .join(" ");
 
-      let summary = `You have ${inboxEmails.length} emails. `;
-      const sortedCategories = emailCategories.filter(c => counts[c.id] > 0);
-      
-      if (sortedCategories.length > 0) {
-        summary += sortedCategories.map(c => `${counts[c.id]} ${c.name}`).join(', ') + ". ";
-        summary += `You can say 'read' followed by a category name, like 'read urgent emails'. Or, say 'read email' and a number to open one.`
-      } else {
-         const emailSnippets = inboxEmails.map((email, index) => 
-          `Email ${index + 1}: From ${email.senderName}, Subject: ${email.subject}.`
-        ).join(' ');
-        summary += `${emailSnippets} To read an email, say 'read email' followed by its number.`;
-      }
-
-      play(summary);
+    summary += `${emailSnippets} To read an email, say 'read email' followed by its number.`;
+    play(summary);
   }, [inboxEmails, isPlaying, play, stop]);
   
   React.useEffect(() => {
@@ -236,15 +219,10 @@ export default function InboxPage() {
 
   React.useEffect(() => {
     const handleCommand = (event: CustomEvent) => {
-      const { command, emailId, suggestionId, category } = event.detail;
+      const { command, emailId, suggestionId } = event.detail;
       switch (command) {
         case 'action_read_list':
           handleReadList();
-          break;
-        case 'action_read_category':
-          if (category) {
-            handleReadCategory(category);
-          }
           break;
         case 'action_read_email':
           if (emailId && emailId > 0 && emailId <= inboxEmails.length) {
@@ -281,7 +259,7 @@ export default function InboxPage() {
     return () => {
       window.removeEventListener('voice-command', handleCommand as EventListener);
     };
-  }, [handleReadList, handlePlayEmail, handleArchiveEmail, handleDeleteEmail, handleReplyEmail, inboxEmails, play, suggestions, handleUseSuggestion, handleSummarizeEmail, handleReadCategory]);
+  }, [handleReadList, handlePlayEmail, handleArchiveEmail, handleDeleteEmail, handleReplyEmail, inboxEmails, play, suggestions, handleUseSuggestion, handleSummarizeEmail]);
 
 
   React.useEffect(() => {
@@ -289,20 +267,6 @@ export default function InboxPage() {
       stop();
     }
   }, [selectedEmailId, stop]);
-
-  const groupedEmails = React.useMemo(() => {
-    const groups = emailCategories.map(c => ({ ...c, emails: [] as Email[] }));
-    
-    inboxEmails.forEach(email => {
-        const categoryId = email.category || 'personal';
-        const group = groups.find(g => g.id === categoryId);
-        if (group) {
-            group.emails.push(email);
-        }
-    });
-
-    return groups.filter(g => g.emails.length > 0);
-  }, [inboxEmails]);
 
   return (
     <TooltipProvider>
@@ -321,44 +285,36 @@ export default function InboxPage() {
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
             ) : inboxEmails.length > 0 ? (
-                groupedEmails.map(group => (
-                    <div key={group.id} className="p-2">
-                        <h3 className="px-4 py-2 text-sm font-semibold text-muted-foreground">{group.name}</h3>
-                        <ul className="divide-y">
-                            {group.emails.map((email, index) => {
-                                const overallIndex = inboxEmails.findIndex(e => e.id === email.id);
-                                return (
-                                    <li
-                                        key={email.id}
-                                        className={cn(
-                                        "p-4 cursor-pointer hover:bg-muted/50 rounded-lg",
-                                        selectedEmailId === email.id && "bg-muted"
-                                        )}
-                                        onClick={() => handleSelectEmail(email)}
-                                    >
-                                        <div className="flex justify-between items-start">
-                                            <div className="font-semibold"><span className="text-muted-foreground text-xs mr-2">{overallIndex+1}.</span>{email.senderName}</div>
-                                            <div className="text-xs text-muted-foreground">
-                                                {formatDistanceToNow(new Date(email.sentAt), {
-                                                addSuffix: true,
-                                                })}
-                                            </div>
-                                        </div>
-                                        <div className="text-sm">{email.subject}</div>
-                                        <div
-                                            className={cn(
-                                                "text-xs text-muted-foreground line-clamp-2",
-                                                !email.read && "font-bold text-foreground"
-                                            )}
-                                        >
-                                        {email.body}
-                                        </div>
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                    </div>
-                ))
+                <ul className="divide-y p-2">
+                    {inboxEmails.map((email, index) => (
+                        <li
+                            key={email.id}
+                            className={cn(
+                            "p-4 cursor-pointer hover:bg-muted/50 rounded-lg",
+                            selectedEmailId === email.id && "bg-muted"
+                            )}
+                            onClick={() => handleSelectEmail(email)}
+                        >
+                            <div className="flex justify-between items-start">
+                                <div className="font-semibold"><span className="text-muted-foreground text-xs mr-2">{index + 1}.</span>{email.senderName}</div>
+                                <div className="text-xs text-muted-foreground">
+                                    {formatDistanceToNow(new Date(email.sentAt), {
+                                    addSuffix: true,
+                                    })}
+                                </div>
+                            </div>
+                            <div className="text-sm">{email.subject}</div>
+                            <div
+                                className={cn(
+                                    "text-xs text-muted-foreground line-clamp-2",
+                                    !email.read && "font-bold text-foreground"
+                                )}
+                            >
+                            {email.body}
+                            </div>
+                        </li>
+                    ))}
+                </ul>
             ) : (
               <div className="text-center p-8 text-muted-foreground">No emails in inbox.</div>
             )}
@@ -384,16 +340,6 @@ export default function InboxPage() {
                         </Tooltip>
                         )}
                         <h3 className="text-xl font-bold line-clamp-1">{selectedEmail.subject}</h3>
-                        {selectedEmail.category && (
-                            <Badge variant="outline" style={{
-                                backgroundColor: `hsl(var(--${emailCategories.find(c=>c.id === selectedEmail.category)?.color}))`,
-                                color: `hsl(var(--${emailCategories.find(c=>c.id === selectedEmail.category)?.color}-foreground))`
-                            }}
-                            className="border-transparent"
-                            >
-                                {emailCategories.find(c=>c.id === selectedEmail.category)?.name}
-                            </Badge>
-                        )}
                     </div>
                     <div className="text-sm text-muted-foreground mt-2">
                         From: {selectedEmail.senderName} &lt;{selectedEmail.senderEmail}&gt;

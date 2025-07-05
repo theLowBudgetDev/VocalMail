@@ -4,6 +4,7 @@
 import { revalidatePath } from 'next/cache';
 import { db } from './db';
 import type { User, Email, Contact } from './data';
+<<<<<<< HEAD
 import { categorizeEmail } from '@/ai/flows/email-categorization-flow';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -105,6 +106,8 @@ export async function getLoggedInUser(): Promise<User | null> {
 
 
 // --- DATA ACTIONS ---
+=======
+>>>>>>> d9b34e4 (remove the email priority from the system.)
 
 export async function getUsers(): Promise<User[]> {
     return db.prepare('SELECT * FROM users').all() as User[];
@@ -117,7 +120,6 @@ export async function getInboxEmails(userId: number): Promise<Email[]> {
             e.subject,
             e.body,
             e.sentAt,
-            e.category,
             u.id as senderId,
             u.name as senderName,
             u.email as senderEmail,
@@ -140,7 +142,6 @@ export async function getArchivedEmails(userId: number): Promise<Email[]> {
             e.subject,
             e.body,
             e.sentAt,
-            e.category,
             u.id as senderId,
             u.name as senderName,
             u.email as senderEmail
@@ -160,7 +161,6 @@ export async function getSentEmails(userId: number): Promise<Email[]> {
             e.subject,
             e.body,
             e.sentAt,
-            e.category,
             u.id as senderId,
             u.name as senderName,
             u.email as senderEmail
@@ -216,8 +216,12 @@ export async function searchEmails(userId: number, searchTerm: string): Promise<
         subject: e.subject,
         body: e.body,
         sentAt: e.sentAt,
+<<<<<<< HEAD
         category: e.category,
         status: e.status, // Use the status from the query
+=======
+        tag: e.tag,
+>>>>>>> d9b34e4 (remove the email priority from the system.)
         senderId: e.senderId,
         senderName: e.senderName,
         senderEmail: e.senderEmail,
@@ -316,17 +320,9 @@ export async function sendEmail(senderId: number, to: string, subject: string, b
         throw new Error(`Recipient email "${to}" not found.`);
     }
 
-    let category: Email['category'] = 'important';
-    try {
-        const result = await categorizeEmail({ subject, body });
-        category = result.category;
-    } catch (e) {
-        console.error("Failed to categorize sent email", e);
-    }
-
     const tx = db.transaction(() => {
-        const emailInsert = db.prepare('INSERT INTO emails (senderId, subject, body, sentAt, category) VALUES (?, ?, ?, ?, ?)')
-            .run(senderId, subject, body, new Date().toISOString(), category);
+        const emailInsert = db.prepare('INSERT INTO emails (senderId, subject, body, sentAt) VALUES (?, ?, ?, ?)')
+            .run(senderId, subject, body, new Date().toISOString());
         const emailId = emailInsert.lastInsertRowid;
 
         db.prepare('INSERT INTO email_recipients (emailId, recipientId) VALUES (?, ?)')
