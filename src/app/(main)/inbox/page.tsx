@@ -333,32 +333,36 @@ export default function InboxPage() {
           )}>
           {selectedEmail ? (
             <Card className="m-0 md:m-4 shadow-none md:shadow-lg h-full md:h-[calc(100%-2rem)] flex flex-col">
-              <div className="p-4 border-b">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {isMobile && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon" onClick={() => { stop(); setSelectedEmailId(null); setSuggestions([]); }}>
-                            <ArrowLeft />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Back to Inbox</TooltipContent>
-                      </Tooltip>
-                    )}
-                    <h3 className="text-xl font-bold line-clamp-1">{selectedEmail.subject}</h3>
-                     {selectedEmail.category && (
-                        <Badge variant="outline" style={{
-                            backgroundColor: `hsl(var(--${emailCategories.find(c=>c.id === selectedEmail.category)?.color}))`,
-                            color: `hsl(var(--${emailCategories.find(c=>c.id === selectedEmail.category)?.color}-foreground))`
-                         }}
-                         className="border-transparent"
-                         >
-                            {emailCategories.find(c=>c.id === selectedEmail.category)?.name}
-                        </Badge>
-                     )}
-                  </div>
-                  <div className="flex items-center gap-2">
+              <div className="p-4 border-b flex flex-col gap-4">
+                <div>
+                    <div className="flex items-center gap-2">
+                        {isMobile && (
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" onClick={() => { stop(); setSelectedEmailId(null); setSuggestions([]); }}>
+                                <ArrowLeft />
+                            </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Back to Inbox</TooltipContent>
+                        </Tooltip>
+                        )}
+                        <h3 className="text-xl font-bold line-clamp-1">{selectedEmail.subject}</h3>
+                        {selectedEmail.category && (
+                            <Badge variant="outline" style={{
+                                backgroundColor: `hsl(var(--${emailCategories.find(c=>c.id === selectedEmail.category)?.color}))`,
+                                color: `hsl(var(--${emailCategories.find(c=>c.id === selectedEmail.category)?.color}-foreground))`
+                            }}
+                            className="border-transparent"
+                            >
+                                {emailCategories.find(c=>c.id === selectedEmail.category)?.name}
+                            </Badge>
+                        )}
+                    </div>
+                    <div className="text-sm text-muted-foreground mt-2">
+                        From: {selectedEmail.from.name} &lt;{selectedEmail.from.email}&gt;
+                    </div>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button variant="ghost" size="icon" onClick={() => handlePlayEmail(selectedEmail)} disabled={isGenerating || isSummarizing}>
@@ -410,10 +414,6 @@ export default function InboxPage() {
                       </TooltipContent>
                     </Tooltip>
                   </div>
-                </div>
-                <div className="text-sm text-muted-foreground mt-2">
-                  From: {selectedEmail.from.name} &lt;{selectedEmail.from.email}&gt;
-                </div>
               </div>
               <ScrollArea className="flex-1">
                 <div className="p-4">
