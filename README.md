@@ -17,6 +17,10 @@ VocalMail is a final year project that re-imagines the email experience for visu
 
 VocalMail uses a simple, mock-user authentication system. On the login page, you can select which of the five pre-seeded users you would like to log in as. This allows for easy testing of a multi-user environment without the need for registration or password management. Your session is remembered in your browser's local storage.
 
+## User Authentication
+
+VocalMail uses a simple, mock-user authentication system. On the login page, you can select which of the five pre-seeded users you would like to log in as. This allows for easy testing of a multi-user environment without the need for registration or password management. Your session is remembered in your browser's local storage.
+
 ## Technology Stack
 
 - **Frontend:** Next.js (App Router), React, TypeScript
@@ -45,7 +49,11 @@ VocalMail uses a simple, mock-user authentication system. On the login page, you
     npm install
     ```
 <<<<<<< HEAD
+<<<<<<< HEAD
     After installation, a `postinstall` script will automatically run to initialize the local SQLite database (`vocalmail.db`) if it doesn't exist. On the first run, it will also be populated with mock data. Subsequent runs of `npm install` or `npm run dev` will not erase your data.
+=======
+    The first time you run this, it will also automatically create and seed a local SQLite database (`vocalmail.db`). On subsequent runs, it will safely do nothing, preserving your existing data.
+>>>>>>> 3baf87b (ensure the readme is updated withthe system's current state.)
 =======
     The first time you run this, it will also automatically create and seed a local SQLite database (`vocalmail.db`). On subsequent runs, it will safely do nothing, preserving your existing data.
 >>>>>>> 3baf87b (ensure the readme is updated withthe system's current state.)
