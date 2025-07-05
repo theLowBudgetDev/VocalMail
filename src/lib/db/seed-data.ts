@@ -21,8 +21,12 @@ export const emails = [
         date: '2024-05-20T10:00:00Z',
         read: false,
 <<<<<<< HEAD
+<<<<<<< HEAD
         status: 'inbox',
         category: 'important',
+=======
+        tag: 'inbox',
+>>>>>>> d9b34e4 (remove the email priority from the system.)
 =======
         tag: 'inbox',
 >>>>>>> d9b34e4 (remove the email priority from the system.)
@@ -35,8 +39,12 @@ export const emails = [
         date: '2024-05-20T11:30:00Z',
         read: false,
 <<<<<<< HEAD
+<<<<<<< HEAD
         status: 'inbox',
         category: 'important',
+=======
+        tag: 'inbox',
+>>>>>>> d9b34e4 (remove the email priority from the system.)
 =======
         tag: 'inbox',
 >>>>>>> d9b34e4 (remove the email priority from the system.)
@@ -49,8 +57,12 @@ export const emails = [
         date: '2024-05-20T12:00:00Z',
         read: true,
 <<<<<<< HEAD
+<<<<<<< HEAD
         status: 'inbox',
         category: 'important',
+=======
+        tag: 'inbox',
+>>>>>>> d9b34e4 (remove the email priority from the system.)
 =======
         tag: 'inbox',
 >>>>>>> d9b34e4 (remove the email priority from the system.)
@@ -63,8 +75,12 @@ export const emails = [
         date: '2024-05-19T15:00:00Z',
         read: true,
 <<<<<<< HEAD
+<<<<<<< HEAD
         status: 'archive',
         category: 'important',
+=======
+        tag: 'archive',
+>>>>>>> d9b34e4 (remove the email priority from the system.)
 =======
         tag: 'archive',
 >>>>>>> d9b34e4 (remove the email priority from the system.)
@@ -77,8 +93,12 @@ export const emails = [
         date: '2024-05-21T09:00:00Z',
         read: false,
 <<<<<<< HEAD
+<<<<<<< HEAD
         status: 'inbox',
         category: 'personal',
+=======
+        tag: 'inbox',
+>>>>>>> d9b34e4 (remove the email priority from the system.)
 =======
         tag: 'inbox',
 >>>>>>> d9b34e4 (remove the email priority from the system.)
@@ -91,8 +111,12 @@ export const emails = [
         date: '2024-05-21T09:15:00Z',
         read: false,
 <<<<<<< HEAD
+<<<<<<< HEAD
         status: 'inbox',
         category: 'personal',
+=======
+        tag: 'inbox',
+>>>>>>> d9b34e4 (remove the email priority from the system.)
 =======
         tag: 'inbox',
 >>>>>>> d9b34e4 (remove the email priority from the system.)

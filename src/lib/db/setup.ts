@@ -33,6 +33,7 @@ if (fs.existsSync(dbPath)) {
             UNIQUE(ownerId, contactUserId)
         );
 
+<<<<<<< HEAD
         CREATE TABLE IF NOT EXISTS emails (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             senderId INTEGER NOT NULL,
@@ -42,6 +43,17 @@ if (fs.existsSync(dbPath)) {
             senderStatus TEXT NOT NULL DEFAULT 'sent', -- 'sent' or 'deleted'
             FOREIGN KEY (senderId) REFERENCES users(id) ON DELETE CASCADE
         );
+=======
+    CREATE TABLE IF NOT EXISTS emails (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        senderId INTEGER NOT NULL,
+        subject TEXT NOT NULL,
+        body TEXT NOT NULL,
+        sentAt TEXT NOT NULL,
+        senderStatus TEXT NOT NULL DEFAULT 'sent', -- 'sent' or 'deleted'
+        FOREIGN KEY (senderId) REFERENCES users(id)
+    );
+>>>>>>> d9b34e4 (remove the email priority from the system.)
 
         CREATE TABLE IF NOT EXISTS email_recipients (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -85,14 +97,20 @@ if (fs.existsSync(dbPath)) {
         return user?.id;
     };
 
+<<<<<<< HEAD
     const insertEmail = db.prepare('INSERT INTO emails (senderId, subject, body, sentAt) VALUES (?, ?, ?, ?)');
     const insertRecipient = db.prepare('INSERT INTO email_recipients (emailId, recipientId, status, read) VALUES (?, ?, ?, ?)');
+=======
+  const insertEmail = db.prepare('INSERT INTO emails (senderId, subject, body, sentAt) VALUES (?, ?, ?, ?)');
+  const insertRecipient = db.prepare('INSERT INTO email_recipients (emailId, recipientId, status, read) VALUES (?, ?, ?, ?)');
+>>>>>>> d9b34e4 (remove the email priority from the system.)
 
     const txEmails = db.transaction(() => {
         for (const email of emails) {
             const senderId = getUserId(email.from);
             if (!senderId) continue;
 
+<<<<<<< HEAD
             const emailResult = insertEmail.run(senderId, email.subject, email.body, email.date);
             const emailId = emailResult.lastInsertRowid as number;
             
@@ -107,6 +125,19 @@ if (fs.existsSync(dbPath)) {
     });
     txEmails();
     console.log('Emails seeded successfully.');
+=======
+      const emailResult = insertEmail.run(senderId, email.subject, email.body, email.date);
+      const emailId = emailResult.lastInsertRowid as number;
+      
+      for (const recipientEmail of email.to) {
+          const recipientId = getUserId(recipientEmail);
+          if(recipientId) {
+              insertRecipient.run(emailId, recipientId, email.tag, email.read ? 1 : 0);
+          }
+      }
+  }
+  console.log('Emails seeded successfully.');
+>>>>>>> d9b34e4 (remove the email priority from the system.)
 
     db.close();
     console.log('Database setup complete.');

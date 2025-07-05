@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { db } from './db';
 import type { User, Email, Contact } from './data';
 <<<<<<< HEAD
+<<<<<<< HEAD
 import { categorizeEmail } from '@/ai/flows/email-categorization-flow';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -106,6 +107,8 @@ export async function getLoggedInUser(): Promise<User | null> {
 
 
 // --- DATA ACTIONS ---
+=======
+>>>>>>> d9b34e4 (remove the email priority from the system.)
 =======
 >>>>>>> d9b34e4 (remove the email priority from the system.)
 
@@ -217,9 +220,12 @@ export async function searchEmails(userId: number, searchTerm: string): Promise<
         body: e.body,
         sentAt: e.sentAt,
 <<<<<<< HEAD
+<<<<<<< HEAD
         category: e.category,
         status: e.status, // Use the status from the query
 =======
+=======
+>>>>>>> d9b34e4 (remove the email priority from the system.)
         tag: e.tag,
 >>>>>>> d9b34e4 (remove the email priority from the system.)
         senderId: e.senderId,
