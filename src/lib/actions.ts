@@ -1,4 +1,3 @@
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -12,17 +11,16 @@ import { redirect } from 'next/navigation';
 const SESSION_COOKIE_NAME = 'vocalmail_session';
 
 export async function login(formData: FormData) {
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
+    const userId = formData.get('userId') as string;
 
-    if (!email || !password) {
-        return redirect('/login?error=Email and password are required.');
+    if (!userId) {
+        return redirect('/login?error=Please select a user.');
     }
 
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as User | undefined;
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as User | undefined;
 
-    if (!user || user.password !== password) {
-         return redirect('/login?error=Invalid email or password.');
+    if (!user) {
+         return redirect('/login?error=Invalid user selected.');
     }
 
     cookies().set(SESSION_COOKIE_NAME, String(user.id), {
@@ -35,49 +33,18 @@ export async function login(formData: FormData) {
     redirect('/inbox');
 }
 
-export async function register(formData: FormData) {
-    const name = formData.get('name') as string;
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
-
-    if (!name || !email || !password) {
-        return redirect('/register?error=All fields are required.');
+export async function switchUser(formData: FormData) {
+    const userId = formData.get('userId') as string;
+    if (!userId) {
+        return;
     }
-
-    const existingUser = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
-    if (existingUser) {
-        return redirect('/register?error=An account with this email already exists.');
-    }
-
-    // Create the new user
-    const avatar = name.charAt(0).toUpperCase();
-    const newUserResult = db.prepare('INSERT INTO users (name, email, password, avatar) VALUES (?, ?, ?, ?)')
-        .run(name, email, password, avatar);
-    
-    const newUserId = newUserResult.lastInsertRowid as number;
-
-    // Make all existing users contacts of the new user, and vice versa
-    const allUsers = db.prepare('SELECT id FROM users').all() as { id: number }[];
-    const insertContact = db.prepare('INSERT INTO contacts (ownerId, contactUserId) VALUES (?, ?)');
-    
-    const tx = db.transaction(() => {
-        for (const user of allUsers) {
-            if (user.id !== newUserId) {
-                insertContact.run(newUserId, user.id); // New user gets old user
-                insertContact.run(user.id, newUserId); // Old user gets new user
-            }
-        }
-    });
-    tx();
-
-    // Log the new user in
-    cookies().set(SESSION_COOKIE_NAME, String(newUserId), {
+    cookies().set(SESSION_COOKIE_NAME, String(userId), {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         maxAge: 60 * 60 * 24 * 7, // One week
         path: '/',
     });
-
+    revalidatePath('/', 'layout');
     redirect('/inbox');
 }
 

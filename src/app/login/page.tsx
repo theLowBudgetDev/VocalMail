@@ -1,12 +1,10 @@
 
-import { login } from "@/lib/actions";
+import { getUsers, getLoggedInUser, login } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import Link from "next/link";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { redirect } from "next/navigation";
-import { getLoggedInUser } from "@/lib/actions";
 
 export default async function LoginPage({
   searchParams,
@@ -18,13 +16,15 @@ export default async function LoginPage({
     redirect('/inbox');
   }
 
+  const users = await getUsers();
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-sm">
         <form action={login}>
           <CardHeader>
-            <CardTitle>Login</CardTitle>
-            <CardDescription>Enter your credentials to access your VocalMail account.</CardDescription>
+            <CardTitle>Welcome to VocalMail</CardTitle>
+            <CardDescription>Select a user to log in and start testing.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
              {searchParams.error && (
@@ -33,31 +33,25 @@ export default async function LoginPage({
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="charlie.davis@example.com"
-                required
-              />
+              <Label htmlFor="userId">Select User</Label>
+              <Select name="userId" required>
+                <SelectTrigger id="userId">
+                  <SelectValue placeholder="Select a user..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {users.map((user) => (
+                    <SelectItem key={user.id} value={String(user.id)}>
+                      {user.name} ({user.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input id="password" name="password" type="password" required />
-            </div>
-             <p className="text-xs text-muted-foreground">Default password for mock users is 'password'.</p>
           </CardContent>
-          <CardFooter className="flex flex-col gap-4">
+          <CardFooter>
             <Button type="submit" className="w-full">
               Login
             </Button>
-            <p className="text-center text-sm text-muted-foreground">
-              Don&apos;t have an account?{" "}
-              <Link href="/register" className="underline hover:text-primary">
-                Sign up
-              </Link>
-            </p>
           </CardFooter>
         </form>
       </Card>
