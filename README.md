@@ -13,6 +13,10 @@ VocalMail is a final year project that re-imagines the email experience for visu
 - **Text-to-Speech & Caching:** All on-screen text and email content can be read aloud. Responses are cached to provide a snappy user experience and reduce API usage.
 - **Full User Authentication:** Secure login and registration system with persistent user sessions.
 
+## User Authentication
+
+VocalMail uses a simple, mock-user authentication system. On the login page, you can select which of the five pre-seeded users you would like to log in as. This allows for easy testing of a multi-user environment without the need for registration or password management. Your session is remembered in your browser's local storage.
+
 ## Technology Stack
 
 - **Frontend:** Next.js (App Router), React, TypeScript
@@ -40,7 +44,11 @@ VocalMail is a final year project that re-imagines the email experience for visu
     ```bash
     npm install
     ```
+<<<<<<< HEAD
     After installation, a `postinstall` script will automatically run to initialize the local SQLite database (`vocalmail.db`) if it doesn't exist. On the first run, it will also be populated with mock data. Subsequent runs of `npm install` or `npm run dev` will not erase your data.
+=======
+    The first time you run this, it will also automatically create and seed a local SQLite database (`vocalmail.db`). On subsequent runs, it will safely do nothing, preserving your existing data.
+>>>>>>> 3baf87b (ensure the readme is updated withthe system's current state.)
 
 3.  **Set up environment variables:**
     Create a file named `.env` in the root of the project and add your Google AI API key:
@@ -74,7 +82,9 @@ You need to run two processes in separate terminals: the Next.js frontend server
     npm run dev
     ```
 
-The application will be available at `http://localhost:9002`.
+### Logging In
+
+Once the application is running, it will open to `http://localhost:9002`. You will be directed to a login page where you can select one of the mock users (e.g., Charlie Davis, Alice Williams) to begin using the application.
 
 ## How It Works
 
