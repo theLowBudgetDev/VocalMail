@@ -27,8 +27,8 @@ import { recognizeCommand, type RecognizeCommandOutput } from "@/ai/flows/comman
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { playTone } from "@/lib/audio";
-import { emails as allEmails, type Email } from "@/lib/data";
-import { categorizeEmail } from "@/ai/flows/email-categorization-flow";
+import { sendEmail } from "@/lib/actions";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 const emailSchema = z.object({
   to: z.string().email({ message: "Invalid email address." }),
@@ -48,6 +48,7 @@ export default function ComposePage() {
   const { play, stop: stopSpeech, isPlaying } = useTextToSpeech();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { currentUser } = useCurrentUser();
 
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
   const audioChunksRef = React.useRef<Blob[]>([]);
@@ -56,7 +57,7 @@ export default function ComposePage() {
     resolver: zodResolver(emailSchema),
     defaultValues: { to: "", subject: "", body: "" },
   });
-  const { setValue, handleSubmit, reset, getValues, trigger, formState: { errors } } = form;
+  const { setValue, handleSubmit, getValues, trigger, formState: { errors } } = form;
 
   const handleProofread = React.useCallback(async () => {
     stopSpeech();
@@ -68,7 +69,7 @@ export default function ComposePage() {
       return;
     }
     const { to, subject, body } = getValues();
-    const proofreadText = `This email is to: ${to}. The subject is: ${subject}. The body is: ${body} You can now say 'send email' or 'make a correction'.`;
+    const proofreadText = `This email is to: ${to}. The subject is: ${subject}. The body is: ${body}. You can now say 'send email' or 'make a correction'.`;
     play(proofreadText);
   }, [getValues, play, stopSpeech, trigger, errors]);
 
@@ -96,7 +97,7 @@ export default function ComposePage() {
                 const errorMessage = errors[currentField]?.message || `The ${currentField} field is empty. Please try again.`;
                 play(errorMessage);
             } else {
-                play(`${currentField.charAt(0).toUpperCase() + currentField.slice(1)} is now set.`, () => {
+                play(`${currentField.charAt(0).toUpperCase() + currentField.slice(1)} is set to: ${updatedValue}.`, () => {
                     if (currentField === 'to') {
                         setStep('subject');
                     } else if (currentField === 'subject') {
@@ -118,39 +119,25 @@ export default function ComposePage() {
   }, [step, setValue, getValues, toast, trigger, errors, play]);
 
   const onSubmit = React.useCallback(async (data: z.infer<typeof emailSchema>) => {
+    if (!currentUser) {
+        toast({ variant: 'destructive', title: 'Not logged in.' });
+        return;
+    }
     setIsSending(true);
     play("Sending email...");
-
-    let category: Email['category'] = 'important';
+    
     try {
-        const result = await categorizeEmail({ subject: data.subject, body: data.body });
-        category = result.category;
-    } catch (e) {
-        console.error("Failed to categorize sent email", e);
+        await sendEmail(currentUser.id, data.to, data.subject, data.body);
+        toast({ title: "Email Sent!", description: `Email to ${data.to} sent successfully.` });
+        play("Email sent successfully. Redirecting to your sent folder.", () => {
+            router.push('/sent?autorun=read_list');
+        });
+    } catch(error: any) {
+        console.error(error);
+        toast({ variant: 'destructive', title: 'Failed to send email', description: error.message });
+        setIsSending(false);
     }
-    
-    const newEmail: Email = {
-        id: Date.now().toString(),
-        from: { name: "Me", email: "user@vocalmail.com" },
-        to: { name: data.to.split('@')[0], email: data.to },
-        subject: data.subject,
-        body: data.body,
-        date: new Date().toISOString(),
-        read: true,
-        tag: 'sent',
-        category: category,
-        priority: 2,
-    };
-
-    allEmails.unshift(newEmail);
-    
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setIsSending(false);
-    toast({ title: "Email Sent!", description: `Email to ${data.to} sent successfully.` });
-    play("Email sent successfully. Redirecting to your sent folder.", () => {
-        router.push('/sent?autorun=read_list');
-    });
-  }, [router, toast, play]);
+  }, [router, toast, play, currentUser]);
   
   const stopListening = React.useCallback(() => {
     if (mediaRecorderRef.current?.state === "recording") {
@@ -281,7 +268,6 @@ export default function ComposePage() {
         }
     }
 
-    // Give a slight delay for form state to update before playing the prompt
     const timer = setTimeout(playStepPrompt, 100);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -463,5 +449,3 @@ export default function ComposePage() {
     </>
   );
 }
-
-    

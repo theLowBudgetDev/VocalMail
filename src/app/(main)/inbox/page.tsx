@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { emails as allEmails, type Email, emailCategories, type EmailCategory } from "@/lib/data";
+import { emailCategories, type EmailCategory, type Email } from "@/lib/data";
 import { useTextToSpeech } from "@/hooks/use-text-to-speech";
 import { generateReplySuggestions } from "@/ai/flows/reply-suggestion-flow";
 import { summarizeEmail } from "@/ai/flows/summarize-email-flow";
@@ -23,22 +23,43 @@ import {
 import { Card } from "@/components/ui/card";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Badge } from "@/components/ui/badge";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { getInboxEmails, markEmailAsRead, archiveEmail, deleteUserEmail } from "@/lib/actions";
+import { toast } from "@/hooks/use-toast";
 
 export default function InboxPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isMobile = useIsMobile();
-  const [inboxEmails, setInboxEmails] = React.useState(() => 
-    allEmails
-      .filter((email) => email.tag === 'inbox')
-      .sort((a, b) => (a.priority || 99) - (b.priority || 99) || new Date(b.date).getTime() - new Date(a.date).getTime())
-  );
-  const [selectedEmailId, setSelectedEmailId] = React.useState<string | null>(null);
+  const { currentUser } = useCurrentUser();
+  
+  const [inboxEmails, setInboxEmails] = React.useState<Email[]>([]);
+  const [selectedEmailId, setSelectedEmailId] = React.useState<number | null>(null);
   const [suggestions, setSuggestions] = React.useState<string[]>([]);
   const [isGeneratingSuggestions, setIsGeneratingSuggestions] = React.useState(false);
   const [isSummarizing, setIsSummarizing] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(true);
 
   const { isPlaying, isGenerating, play, stop } = useTextToSpeech();
+
+  const fetchEmails = React.useCallback(async () => {
+    if (!currentUser) return;
+    setIsLoading(true);
+    try {
+        const emails = await getInboxEmails(currentUser.id);
+        setInboxEmails(emails);
+    } catch(e) {
+        console.error(e);
+        toast({ variant: 'destructive', title: 'Failed to load inbox.' });
+    } finally {
+        setIsLoading(false);
+    }
+  }, [currentUser]);
+
+  React.useEffect(() => {
+      fetchEmails();
+  }, [fetchEmails]);
+
 
   const handleReadCategory = React.useCallback((category: EmailCategory['id']) => {
     const categoryInfo = emailCategories.find(c => c.id === category);
@@ -51,7 +72,7 @@ export default function InboxPage() {
     }
 
     const emailSnippets = categoryEmails.map((email, index) => 
-      `Email ${index + 1}: From ${email.from.name}, Subject: ${email.subject}.`
+      `Email ${index + 1}: From ${email.senderName}, Subject: ${email.subject}.`
     ).join(' ');
     
     const fullText = `You have ${categoryEmails.length} ${categoryInfo.name} emails. ${emailSnippets}`;
@@ -83,7 +104,7 @@ export default function InboxPage() {
         summary += `You can say 'read' followed by a category name, like 'read urgent emails'. Or, say 'read email' and a number to open one.`
       } else {
          const emailSnippets = inboxEmails.map((email, index) => 
-          `Email ${index + 1}: From ${email.from.name}, Subject: ${email.subject}.`
+          `Email ${index + 1}: From ${email.senderName}, Subject: ${email.subject}.`
         ).join(' ');
         summary += `${emailSnippets} To read an email, say 'read email' followed by its number.`;
       }
@@ -93,12 +114,11 @@ export default function InboxPage() {
   
   React.useEffect(() => {
     const autorun = searchParams.get('autorun');
-    if (autorun === 'read_list') {
+    if (autorun === 'read_list' && !isLoading) {
         play("Navigated to Inbox.", handleReadList);
-        // Clean the URL to prevent re-triggering on refresh
         router.replace('/inbox', {scroll: false});
     }
-  }, [searchParams, play, handleReadList, router]);
+  }, [searchParams, play, handleReadList, router, isLoading]);
 
 
   React.useEffect(() => {
@@ -148,55 +168,68 @@ export default function InboxPage() {
     }
   }, [selectedEmail, play, stop]);
 
+  const handleSelectEmail = React.useCallback(async (email: Email) => {
+    if (isPlaying) {
+        stop();
+    }
+    setSelectedEmailId(email.id); 
+    setSuggestions([]);
+    if (!email.read && currentUser) {
+        try {
+            await markEmailAsRead(email.id, currentUser.id);
+            // Optimistically update the UI
+            setInboxEmails(prev => prev.map(e => e.id === email.id ? {...e, read: true} : e));
+        } catch (e) {
+            console.error(e); //
+        }
+    }
+  }, [currentUser, isPlaying, stop]);
+
   const handlePlayEmail = React.useCallback((emailToRead?: Email) => {
     if (emailToRead) {
-      if (isPlaying) {
-        stop();
-      }
-      setSuggestions([]);
+      handleSelectEmail(emailToRead);
       setTimeout(() => {
-        const textToRead = `Email from ${emailToRead.from.name}. Subject: ${emailToRead.subject}. Body: ${emailToRead.body}`;
+        const textToRead = `Email from ${emailToRead.senderName}. Subject: ${emailToRead.subject}. Body: ${emailToRead.body}`;
         play(textToRead, () => handleGenerateSuggestions(emailToRead.body));
-        setSelectedEmailId(emailToRead.id);
       }, 100)
     }
-  }, [isPlaying, play, stop, handleGenerateSuggestions]);
+  }, [handleSelectEmail, play, handleGenerateSuggestions]);
 
-  const handleArchiveEmail = React.useCallback(() => {
-    if (selectedEmailId) {
+  const handleArchiveEmail = React.useCallback(async () => {
+    if (selectedEmailId && currentUser) {
       stop();
-      const remainingEmails = inboxEmails.filter(e => e.id !== selectedEmailId);
-      setInboxEmails(remainingEmails);
-      const nextSelectedId = isMobile ? null : (remainingEmails.length > 0 ? remainingEmails[0].id : null);
-      setSelectedEmailId(nextSelectedId);
-      setSuggestions([]);
       play("Email archived.");
-    }
-  }, [selectedEmailId, inboxEmails, play, stop, isMobile]);
-  
-  const handleDeleteEmail = React.useCallback(() => {
-    if (selectedEmailId) {
-       stop();
-       const remainingEmails = inboxEmails.filter(e => e.id !== selectedEmailId);
-      setInboxEmails(remainingEmails);
-      const nextSelectedId = isMobile ? null : (remainingEmails.length > 0 ? remainingEmails[0].id : null);
-      setSelectedEmailId(nextSelectedId);
+      await archiveEmail(selectedEmailId, currentUser.id);
+      fetchEmails();
+      const nextSelectedId = isMobile ? null : (inboxEmails.length > 1 ? inboxEmails.find(e => e.id !== selectedEmailId)?.id : null);
+      setSelectedEmailId(nextSelectedId || null);
       setSuggestions([]);
-       play("Email deleted.");
     }
-  }, [selectedEmailId, inboxEmails, play, stop, isMobile]);
+  }, [selectedEmailId, currentUser, stop, play, fetchEmails, isMobile, inboxEmails]);
+  
+  const handleDeleteEmail = React.useCallback(async () => {
+    if (selectedEmailId && currentUser) {
+       stop();
+       play("Email deleted.");
+       await deleteUserEmail(selectedEmailId, currentUser.id, 'inbox');
+       fetchEmails();
+       const nextSelectedId = isMobile ? null : (inboxEmails.length > 1 ? inboxEmails.find(e => e.id !== selectedEmailId)?.id : null);
+       setSelectedEmailId(nextSelectedId || null);
+       setSuggestions([]);
+    }
+  }, [selectedEmailId, currentUser, stop, play, fetchEmails, isMobile, inboxEmails]);
 
   const handleReplyEmail = React.useCallback(() => {
     if (selectedEmail) {
       stop();
-      router.push(`/compose?to=${encodeURIComponent(selectedEmail.from.email)}&subject=${encodeURIComponent(`Re: ${selectedEmail.subject}`)}`);
+      router.push(`/compose?to=${encodeURIComponent(selectedEmail.senderEmail)}&subject=${encodeURIComponent(`Re: ${selectedEmail.subject}`)}`);
     }
   }, [selectedEmail, router, stop]);
 
   const handleUseSuggestion = React.useCallback((suggestion: string) => {
     if (selectedEmail) {
       stop();
-      router.push(`/compose?to=${encodeURIComponent(selectedEmail.from.email)}&subject=${encodeURIComponent(`Re: ${selectedEmail.subject}`)}&body=${encodeURIComponent(suggestion)}`);
+      router.push(`/compose?to=${encodeURIComponent(selectedEmail.senderEmail)}&subject=${encodeURIComponent(`Re: ${selectedEmail.subject}`)}&body=${encodeURIComponent(suggestion)}`);
     }
   }, [selectedEmail, router, stop]);
 
@@ -283,7 +316,11 @@ export default function InboxPage() {
           </div>
           <Separator />
           <ScrollArea className="flex-1">
-            {inboxEmails.length > 0 ? (
+            {isLoading ? (
+                <div className="flex justify-center items-center h-full">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+            ) : inboxEmails.length > 0 ? (
                 groupedEmails.map(group => (
                     <div key={group.id} className="p-2">
                         <h3 className="px-4 py-2 text-sm font-semibold text-muted-foreground">{group.name}</h3>
@@ -297,12 +334,12 @@ export default function InboxPage() {
                                         "p-4 cursor-pointer hover:bg-muted/50 rounded-lg",
                                         selectedEmailId === email.id && "bg-muted"
                                         )}
-                                        onClick={() => { stop(); setSelectedEmailId(email.id); setSuggestions([]); }}
+                                        onClick={() => handleSelectEmail(email)}
                                     >
                                         <div className="flex justify-between items-start">
-                                            <div className="font-semibold"><span className="text-muted-foreground text-xs mr-2">{overallIndex+1}.</span>{email.from.name}</div>
+                                            <div className="font-semibold"><span className="text-muted-foreground text-xs mr-2">{overallIndex+1}.</span>{email.senderName}</div>
                                             <div className="text-xs text-muted-foreground">
-                                                {formatDistanceToNow(new Date(email.date), {
+                                                {formatDistanceToNow(new Date(email.sentAt), {
                                                 addSuffix: true,
                                                 })}
                                             </div>
@@ -359,10 +396,10 @@ export default function InboxPage() {
                         )}
                     </div>
                     <div className="text-sm text-muted-foreground mt-2">
-                        From: {selectedEmail.from.name} &lt;{selectedEmail.from.email}&gt;
+                        From: {selectedEmail.senderName} &lt;{selectedEmail.senderEmail}&gt;
                     </div>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap px-4">
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button variant="ghost" size="icon" onClick={() => handlePlayEmail(selectedEmail)} disabled={isGenerating || isSummarizing}>

@@ -3,8 +3,9 @@
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search } from "lucide-react";
-import { emails as allEmails, type Email } from "@/lib/data";
+import { Search, Loader2, Trash2 } from "lucide-react";
+import { searchEmails, deleteUserEmail } from "@/lib/actions";
+import type { Email } from "@/lib/data";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
@@ -19,26 +20,42 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { toast } from "@/hooks/use-toast";
 
 function SearchResultsPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { currentUser } = useCurrentUser();
     const query = searchParams.get('q') || '';
     
     const [inputValue, setInputValue] = React.useState(query);
+    const [searchResults, setSearchResults] = React.useState<Email[]>([]);
+    const [isLoading, setIsLoading] = React.useState(false);
     const [selectedEmail, setSelectedEmail] = React.useState<Email | null>(null);
     const { play, stop } = useTextToSpeech();
 
-    const searchResults = React.useMemo(() => {
-        if (!query) return [];
-        const lowercasedQuery = query.toLowerCase();
-        return allEmails.filter(email => 
-            email.subject.toLowerCase().includes(lowercasedQuery) ||
-            email.body.toLowerCase().includes(lowercasedQuery) ||
-            email.from.name.toLowerCase().includes(lowercasedQuery) ||
-            (email.to && email.to.name.toLowerCase().includes(lowercasedQuery))
-        );
-    }, [query]);
+    const performSearch = React.useCallback(async () => {
+        if (!query || !currentUser) {
+            setSearchResults([]);
+            return;
+        };
+        setIsLoading(true);
+        try {
+            const results = await searchEmails(currentUser.id, query);
+            setSearchResults(results);
+        } catch(e) {
+            console.error(e);
+            toast({ variant: 'destructive', title: "Search failed." });
+        } finally {
+            setIsLoading(false);
+        }
+    }, [query, currentUser]);
+
+    React.useEffect(() => {
+        setInputValue(query);
+        performSearch();
+    }, [query, performSearch]);
 
     const handleReadList = React.useCallback(() => {
         if (searchResults.length === 0) {
@@ -46,18 +63,11 @@ function SearchResultsPage() {
             return;
         }
         const emailSnippets = searchResults.map((email, index) => 
-            `Email ${index + 1}: ${email.tag === 'sent' ? 'To' : 'From'} ${email.tag === 'sent' ? email.to?.name : email.from.name}, Subject: ${email.subject}.`
+            `Email ${index + 1}: In ${email.status}, from ${email.senderName}, Subject: ${email.subject}.`
         ).join(' ');
         const fullText = `Found ${searchResults.length} search results. ${emailSnippets}`;
         play(fullText);
     }, [searchResults, play, query]);
-
-    React.useEffect(() => {
-        setInputValue(query);
-        if (query) {
-            handleReadList();
-        }
-    }, [query, handleReadList]);
 
      React.useEffect(() => {
         const autorun = searchParams.get('autorun');
@@ -78,10 +88,25 @@ function SearchResultsPage() {
         stop();
         setSelectedEmail(email);
         setTimeout(() => {
-             const intro = email.tag === 'sent' ? `Email to ${email.to?.name}` : `Email from ${email.from.name}`;
+             const intro = email.senderId === currentUser?.id ? `Email to recipients` : `Email from ${email.senderName}`;
              play(`${intro}. Subject: ${email.subject}. Body: ${email.body}`);
         }, 100);
     }
+    
+    const handleDelete = async (email: Email) => {
+        if (!currentUser) return;
+        const type = email.senderId === currentUser.id ? 'sent' : 'search';
+        try {
+            await deleteUserEmail(email.id, currentUser.id, type, email.status);
+            toast({ title: "Email Deleted" });
+            setSelectedEmail(null);
+            performSearch(); // Refetch
+        } catch (error) {
+            console.error(error);
+            toast({ variant: 'destructive', title: 'Failed to delete email.' });
+        }
+    }
+
 
     React.useEffect(() => {
         const handleCommand = (event: CustomEvent) => {
@@ -94,6 +119,10 @@ function SearchResultsPage() {
                 handleReadEmail(emailToRead);
             } else if (command === 'action_read_list') {
                  handleReadList();
+            } else if (command === 'action_delete' && emailId > 0 && emailId <= searchResults.length) {
+                const emailToDelete = searchResults[emailId - 1];
+                play(`Deleting email ${emailId}.`);
+                handleDelete(emailToDelete);
             }
         };
         window.addEventListener('voice-command', handleCommand as EventListener);
@@ -123,6 +152,11 @@ function SearchResultsPage() {
             </CardHeader>
             <CardContent>
                 {query && <h3 className="text-lg font-medium mb-4">Results for "{query}"</h3>}
+                {isLoading ? (
+                     <div className="flex justify-center items-center h-48">
+                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    </div>
+                ) : (
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -135,14 +169,14 @@ function SearchResultsPage() {
                     </TableHeader>
                     <TableBody>
                         {searchResults.map((email, index) => (
-                            <TableRow key={email.id} onClick={() => setSelectedEmail(email)} className="cursor-pointer">
+                            <TableRow key={email.id + (email.status || 'sent')} onClick={() => setSelectedEmail(email)} className="cursor-pointer">
                                 <TableCell>{index + 1}</TableCell>
                                 <TableCell className="font-medium">
-                                    {email.tag === 'sent' ? `To: ${email.to?.name}` : `From: ${email.from.name}`}
+                                    {email.senderId === currentUser?.id ? `To: various` : `From: ${email.senderName}`}
                                 </TableCell>
                                 <TableCell>{email.subject}</TableCell>
-                                <TableCell><span className="capitalize bg-muted px-2 py-1 rounded-md text-sm">{email.tag}</span></TableCell>
-                                <TableCell className="text-right">{format(new Date(email.date), "PPP")}</TableCell>
+                                <TableCell><span className="capitalize bg-muted px-2 py-1 rounded-md text-sm">{email.status || 'sent'}</span></TableCell>
+                                <TableCell className="text-right">{format(new Date(email.sentAt), "PPP")}</TableCell>
                             </TableRow>
                         ))}
                         {searchResults.length === 0 && (
@@ -154,6 +188,7 @@ function SearchResultsPage() {
                         )}
                     </TableBody>
                 </Table>
+                )}
             </CardContent>
         </Card>
         {selectedEmail && (
@@ -162,20 +197,25 @@ function SearchResultsPage() {
                     <DialogHeader>
                         <DialogTitle>{selectedEmail.subject || "Email Details"}</DialogTitle>
                         <DialogDescription>
-                            {selectedEmail.tag === 'sent' 
-                                ? `To: ${selectedEmail.to?.name} <${selectedEmail.to?.email}>`
-                                : `From: ${selectedEmail.from.name} <${selectedEmail.from.email}>`
+                            {selectedEmail.senderId === currentUser?.id
+                                ? `You sent this email.`
+                                : `From: ${selectedEmail.senderName} <${selectedEmail.senderEmail}>`
                             }
                             <br />
-                            Date: {format(new Date(selectedEmail.date), "PPP p")}
+                            Date: {format(new Date(selectedEmail.sentAt), "PPP p")}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="py-4 whitespace-pre-wrap max-h-[60vh] overflow-y-auto">
                         {selectedEmail.body}
                     </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => handleReadEmail(selectedEmail)}>Read Aloud</Button>
-                        <Button onClick={() => { stop(); setSelectedEmail(null); }}>Close</Button>
+                    <DialogFooter className="sm:justify-between">
+                         <Button variant="destructive" onClick={() => handleDelete(selectedEmail)}>
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                        </Button>
+                        <div className="flex gap-2">
+                           <Button variant="outline" onClick={() => handleReadEmail(selectedEmail)}>Read Aloud</Button>
+                           <Button onClick={() => { stop(); setSelectedEmail(null); }}>Close</Button>
+                        </div>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

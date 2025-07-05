@@ -3,7 +3,8 @@
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { emails as allEmails, type Email } from "@/lib/data";
+import { getSentEmails, deleteUserEmail } from "@/lib/actions";
+import type { Email } from "@/lib/data";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
@@ -17,13 +18,36 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { toast } from "@/hooks/use-toast";
+import { Loader2, Trash2 } from "lucide-react";
 
 export default function SentPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { currentUser } = useCurrentUser();
     const [selectedEmail, setSelectedEmail] = React.useState<Email | null>(null);
-    const [sentEmails, setSentEmails] = React.useState(() => allEmails.filter((email) => email.tag === 'sent'));
+    const [sentEmails, setSentEmails] = React.useState<Email[]>([]);
+    const [isLoading, setIsLoading] = React.useState(true);
     const { play, stop, isPlaying } = useTextToSpeech();
+
+    const fetchEmails = React.useCallback(async () => {
+        if (!currentUser) return;
+        setIsLoading(true);
+        try {
+            const emails = await getSentEmails(currentUser.id);
+            setSentEmails(emails);
+        } catch (error) {
+            console.error(error);
+            toast({ variant: 'destructive', title: "Failed to load sent emails." });
+        } finally {
+            setIsLoading(false);
+        }
+    }, [currentUser]);
+
+    React.useEffect(() => {
+        fetchEmails();
+    }, [fetchEmails]);
 
     const handleReadList = React.useCallback(() => {
         if (isPlaying) {
@@ -34,9 +58,10 @@ export default function SentPage() {
             play("Your sent folder is empty.");
             return;
         }
-        const emailSnippets = sentEmails.map((email, index) => 
-          `Email ${index + 1}: To ${email.to?.name || 'N/A'}, Subject: ${email.subject}.`
-        ).join(' ');
+        const emailSnippets = sentEmails.map((email, index) => {
+            const recipientNames = email.recipients?.map(r => r.name).join(', ') || 'N/A';
+            return `Email ${index + 1}: To ${recipientNames}, Subject: ${email.subject}.`;
+        }).join(' ');
         const fullText = `You have ${sentEmails.length} sent emails. ${emailSnippets} To read an email, say 'read email' followed by its number.`;
         play(fullText);
     }, [sentEmails, isPlaying, play, stop]);
@@ -46,28 +71,46 @@ export default function SentPage() {
         stop();
         setSelectedEmail(email);
         setTimeout(() => {
-             play(`Email to ${email.to?.name}. Subject: ${email.subject}. Body: ${email.body}`);
+            const recipientNames = email.recipients?.map(r => r.name).join(', ') || 'N/A';
+            play(`Email to ${recipientNames}. Subject: ${email.subject}. Body: ${email.body}`);
         }, 100);
+    }
+    
+    const handleDelete = async (emailId: number) => {
+        if (!currentUser) return;
+        try {
+            await deleteUserEmail(emailId, currentUser.id, 'sent');
+            toast({ title: "Email Deleted" });
+            setSelectedEmail(null);
+            fetchEmails(); // Refetch
+        } catch (error) {
+            console.error(error);
+            toast({ variant: 'destructive', title: 'Failed to delete email.' });
+        }
     }
 
     React.useEffect(() => {
         const autorun = searchParams.get('autorun');
-        if (autorun === 'read_list') {
+        if (autorun === 'read_list' && !isLoading) {
             play("Navigated to Sent.", handleReadList);
             router.replace('/sent', {scroll: false});
         }
-    }, [searchParams, play, handleReadList, router]);
+    }, [searchParams, play, handleReadList, router, isLoading]);
 
     React.useEffect(() => {
         const handleCommand = (event: CustomEvent) => {
             const { command, emailId } = event.detail;
             if (command === 'action_help') {
-                play("You are viewing sent emails. Say 'read the list' or 'read email' and a number to hear an email.");
+                play("You are viewing sent emails. Say 'read the list' or 'read email' and a number to hear an email. You can also say 'delete' and a number.");
             } else if (command === 'action_read_list') {
                 handleReadList();
             } else if (command === 'action_read_email' && emailId > 0 && emailId <= sentEmails.length) {
                 const emailToRead = sentEmails[emailId - 1];
                 handleReadEmail(emailToRead);
+            } else if (command === 'action_delete' && emailId > 0 && emailId <= sentEmails.length) {
+                const emailToDelete = sentEmails[emailId - 1];
+                play(`Deleting email ${emailId}.`);
+                handleDelete(emailToDelete.id);
             }
         };
         window.addEventListener('voice-command', handleCommand as EventListener);
@@ -81,6 +124,11 @@ export default function SentPage() {
                 <CardTitle>Sent</CardTitle>
             </CardHeader>
             <CardContent>
+                {isLoading ? (
+                    <div className="flex justify-center items-center h-48">
+                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    </div>
+                ) : (
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -94,18 +142,19 @@ export default function SentPage() {
                         {sentEmails.map((email, index) => (
                             <TableRow key={email.id} onClick={() => setSelectedEmail(email)} className="cursor-pointer">
                                 <TableCell>{index + 1}</TableCell>
-                                <TableCell className="font-medium">{email.to?.name || 'N/A'}</TableCell>
+                                <TableCell className="font-medium">{email.recipients?.map(r => r.name).join(', ') || 'N/A'}</TableCell>
                                 <TableCell>{email.subject}</TableCell>
-                                <TableCell className="text-right">{format(new Date(email.date), "PPP")}</TableCell>
+                                <TableCell className="text-right">{format(new Date(email.sentAt), "PPP")}</TableCell>
                             </TableRow>
                         ))}
                          {sentEmails.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={4} className="text-center">No sent emails.</TableCell>
+                                <TableCell colSpan={4} className="text-center h-24">No sent emails.</TableCell>
                             </TableRow>
                         )}
                     </TableBody>
                 </Table>
+                )}
             </CardContent>
         </Card>
         {selectedEmail && (
@@ -114,17 +163,22 @@ export default function SentPage() {
                     <DialogHeader>
                         <DialogTitle>{selectedEmail.subject || "Email Details"}</DialogTitle>
                         <DialogDescription>
-                            To: {selectedEmail.to?.name} &lt;{selectedEmail.to?.email}&gt;
+                            To: {selectedEmail.recipients?.map(r => `${r.name} <${r.email}>`).join(', ') || 'N/A'}
                             <br />
-                            Date: {format(new Date(selectedEmail.date), "PPP p")}
+                            Date: {format(new Date(selectedEmail.sentAt), "PPP p")}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="py-4 whitespace-pre-wrap max-h-[60vh] overflow-y-auto">
                         {selectedEmail.body}
                     </div>
-                     <DialogFooter>
-                        <Button variant="outline" onClick={() => handleReadEmail(selectedEmail)}>Read Aloud</Button>
-                        <Button onClick={() => { stop(); setSelectedEmail(null); }}>Close</Button>
+                     <DialogFooter className="sm:justify-between">
+                         <Button variant="destructive" onClick={() => handleDelete(selectedEmail.id)}>
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                        </Button>
+                        <div className="flex gap-2">
+                            <Button variant="outline" onClick={() => handleReadEmail(selectedEmail)}>Read Aloud</Button>
+                            <Button onClick={() => { stop(); setSelectedEmail(null); }}>Close</Button>
+                        </div>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

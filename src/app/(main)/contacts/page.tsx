@@ -3,11 +3,12 @@
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { contacts as initialContacts, type Contact } from "@/lib/data";
+import { getContacts, addContact, deleteContact } from "@/lib/actions";
+import type { Contact } from "@/lib/data";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Search, X, Mail, Loader2 } from "lucide-react";
+import { PlusCircle, Search, X, Mail, Loader2, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useTextToSpeech } from "@/hooks/use-text-to-speech";
 import {
@@ -20,17 +21,39 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { toast } from "@/hooks/use-toast";
 
 export default function ContactsPage() {
-    const [contacts, setContacts] = React.useState<Contact[]>(initialContacts);
+    const [contacts, setContacts] = React.useState<Contact[]>([]);
     const [searchQuery, setSearchQuery] = React.useState("");
     const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
     const [newContactName, setNewContactName] = React.useState("");
     const [newContactEmail, setNewContactEmail] = React.useState("");
+    const [isLoading, setIsLoading] = React.useState(true);
 
+    const { currentUser } = useCurrentUser();
     const { play } = useTextToSpeech();
     const router = useRouter();
     const searchParams = useSearchParams();
+
+    const fetchContacts = React.useCallback(async () => {
+        if (!currentUser) return;
+        setIsLoading(true);
+        try {
+            const fetchedContacts = await getContacts(currentUser.id);
+            setContacts(fetchedContacts);
+        } catch (error) {
+            console.error(error);
+            toast({ variant: 'destructive', title: 'Failed to load contacts.'});
+        } finally {
+            setIsLoading(false);
+        }
+    }, [currentUser]);
+
+    React.useEffect(() => {
+        fetchContacts();
+    }, [fetchContacts]);
 
     const filteredContacts = React.useMemo(() => {
         if (!searchQuery) {
@@ -63,41 +86,47 @@ export default function ContactsPage() {
         play("Search cleared.");
     };
 
-    const handleAddContact = () => {
-        if (!newContactName || !newContactEmail) {
-            play("Please fill out both name and email.");
+    const handleAddContact = async () => {
+        if (!currentUser) return;
+        if (!newContactEmail) {
+            play("Please fill out the email address.");
             return;
         }
-        const newContact: Contact = {
-            id: Date.now().toString(),
-            name: newContactName,
-            email: newContactEmail,
-            avatar: newContactName.charAt(0).toUpperCase(),
-        };
-        setContacts(prev => [...prev, newContact]);
-        play(`Contact ${newContactName} added.`);
-        setIsAddDialogOpen(false);
-        setNewContactName("");
-        setNewContactEmail("");
+
+        try {
+            await addContact(currentUser.id, newContactEmail);
+            play(`Contact added.`);
+            fetchContacts();
+            setIsAddDialogOpen(false);
+            setNewContactName("");
+            setNewContactEmail("");
+        } catch (error: any) {
+            console.error(error);
+            play(error.message || "Failed to add contact.");
+            toast({ variant: "destructive", title: "Failed to add contact", description: error.message });
+        }
     };
 
-    const handleDeleteContact = (name: string) => {
-        const contactExists = contacts.some(c => c.name.toLowerCase() === name.toLowerCase());
-        if (contactExists) {
-            setContacts(prev => prev.filter(c => c.name.toLowerCase() !== name.toLowerCase()));
+    const handleDeleteContact = async (contactId: number, name: string) => {
+        if (!currentUser) return;
+        try {
+            await deleteContact(currentUser.id, contactId);
             play(`Contact ${name} deleted.`);
-        } else {
-            play(`Sorry, I could not find a contact named ${name}.`);
+            fetchContacts();
+        } catch (error) {
+            console.error(error);
+            play(`Could not delete contact ${name}.`);
+            toast({ variant: 'destructive', title: 'Failed to delete contact.' });
         }
     };
 
     React.useEffect(() => {
         const autorun = searchParams.get('autorun');
-        if (autorun === 'read_list') {
+        if (autorun === 'read_list' && !isLoading) {
             play("Navigated to Contacts.", handleReadList);
             router.replace('/contacts', {scroll: false});
         }
-    }, [searchParams, play, handleReadList, router]);
+    }, [searchParams, play, handleReadList, router, isLoading]);
     
     React.useEffect(() => {
         const handleCommand = (event: CustomEvent) => {
@@ -128,7 +157,12 @@ export default function ContactsPage() {
                     break;
                 case 'action_delete_contact':
                     if (contactName) {
-                        handleDeleteContact(contactName);
+                        const targetContact = contacts.find(c => c.name.toLowerCase() === contactName.toLowerCase());
+                        if (targetContact) {
+                           handleDeleteContact(targetContact.id, targetContact.name);
+                        } else {
+                            play(`Sorry, I could not find a contact named ${contactName}.`);
+                        }
                     } else {
                         play("Please specify which contact to delete.");
                     }
@@ -176,6 +210,11 @@ export default function ContactsPage() {
                 </div>
             </CardHeader>
             <CardContent>
+                 {isLoading ? (
+                    <div className="flex justify-center items-center h-48">
+                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    </div>
+                ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {filteredContacts.map((contact) => (
                         <Card key={contact.id} className="p-4 flex flex-col items-center text-center shadow-md hover:shadow-lg transition-shadow relative group">
@@ -184,14 +223,22 @@ export default function ContactsPage() {
                             </Avatar>
                             <p className="font-semibold text-lg">{contact.name}</p>
                             <p className="text-sm text-muted-foreground">{contact.email}</p>
-                             <Button 
-                                variant="outline" 
-                                size="icon" 
-                                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                                onClick={() => handleEmailContact(contact.email, contact.name)}
-                            >
-                                <Mail className="h-4 w-4" />
-                            </Button>
+                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                                <Button 
+                                    variant="outline" 
+                                    size="icon" 
+                                    onClick={() => handleEmailContact(contact.email, contact.name)}
+                                >
+                                    <Mail className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                    variant="destructive" 
+                                    size="icon" 
+                                    onClick={() => handleDeleteContact(contact.id, contact.name)}
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </div>
                         </Card>
                     ))}
                      {filteredContacts.length === 0 && (
@@ -200,6 +247,7 @@ export default function ContactsPage() {
                         </div>
                     )}
                 </div>
+                )}
             </CardContent>
         </Card>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -207,14 +255,10 @@ export default function ContactsPage() {
                 <DialogHeader>
                     <DialogTitle>Add New Contact</DialogTitle>
                     <DialogDescription>
-                        Enter the details for your new contact here.
+                        Enter the email address of the user you want to add.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="name" className="text-right">Name</Label>
-                        <Input id="name" value={newContactName} onChange={(e) => setNewContactName(e.target.value)} className="col-span-3" />
-                    </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="email" className="text-right">Email</Label>
                         <Input id="email" type="email" value={newContactEmail} onChange={(e) => setNewContactEmail(e.target.value)} className="col-span-3" />
