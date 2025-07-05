@@ -27,11 +27,13 @@ import { recognizeCommand, type RecognizeCommandOutput } from "@/ai/flows/comman
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { playTone } from "@/lib/audio";
+import { emails as allEmails, type Email } from "@/lib/data";
+import { categorizeEmail } from "@/ai/flows/email-categorization-flow";
 
 const emailSchema = z.object({
   to: z.string().email({ message: "Invalid email address." }),
   subject: z.string().min(1, { message: "Subject is required." }),
-  body: z.string(),
+  body: z.string().min(1, { message: "Body is required." }),
 });
 
 type CompositionStep = "to" | "subject" | "body" | "review" | "correcting";
@@ -56,58 +58,99 @@ export default function ComposePage() {
   });
   const { setValue, handleSubmit, reset, getValues, trigger, formState: { errors } } = form;
 
-  const handleTranscription = React.useCallback(async (text: string) => {
-    if (!['to', 'subject', 'body'].includes(step)) return;
-
-    const currentField = step as 'to' | 'subject' | 'body';
-
-    setIsProcessing(true);
-    try {
-      const result = await voiceToTextConversion({
-        audioDataUri: '', // This is a placeholder, actual audio is processed before
-        transcription: text,
-        context: currentField,
-      });
-
-      if (result.transcription) {
-        if (currentField === 'body') {
-            setValue(currentField, getValues("body") + result.transcription + " ", { shouldValidate: true });
-        } else {
-            setValue(currentField, result.transcription, { shouldValidate: true });
-        }
-      }
-    } catch (error) {
-       console.error("Transcription failed:", error);
-       toast({ variant: "destructive", title: "Transcription Failed", description: "I had trouble converting that to text. Let's try that again." });
-    } finally {
-        setIsProcessing(false);
-    }
-  }, [step, setValue, getValues, toast]);
-
-  const onSubmit = React.useCallback(async (data: z.infer<typeof emailSchema>) => {
-    setIsSending(true);
-    play("Sending email...");
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setIsSending(false);
-    toast({ title: "Email Sent!", description: `Email to ${data.to} sent successfully.` });
-    play("Email sent successfully.", () => {
-        reset({ to: "", subject: "", body: "" });
-        setStep("to");
-    });
-  }, [reset, toast, play]);
-
   const handleProofread = React.useCallback(async () => {
     stopSpeech();
     const isValid = await trigger();
     if (!isValid) {
       const errorMessages = Object.values(errors).map(e => e.message).join(' ');
       play(`There are some errors. ${errorMessages}. You can say 'make a correction' to fix them.`);
+      setStep('correcting');
       return;
     }
     const { to, subject, body } = getValues();
-    const proofreadText = `This email is to: ${to}. The subject is: ${subject}. The body is: ${body || 'The body is empty.'} You can say 'send email' or 'make a correction'.`;
+    const proofreadText = `This email is to: ${to}. The subject is: ${subject}. The body is: ${body} You can now say 'send email' or 'make a correction'.`;
     play(proofreadText);
   }, [getValues, play, stopSpeech, trigger, errors]);
+
+  const handleTranscription = React.useCallback(async (transcription: string) => {
+    if (!['to', 'subject', 'body'].includes(step)) return;
+
+    const currentField = step as 'to' | 'subject' | 'body';
+
+    setIsProcessing(true);
+    try {
+        const result = await voiceToTextConversion({
+            transcription: transcription,
+            context: currentField,
+        });
+
+        if (result.transcription) {
+             const currentValue = getValues(currentField);
+             const newValue = currentField === 'body' ? (currentValue ? currentValue + result.transcription + " " : result.transcription + " ") : result.transcription;
+             setValue(currentField, newValue, { shouldValidate: true });
+
+            const isValid = await trigger(currentField);
+            const updatedValue = getValues(currentField);
+
+            if (!isValid || !updatedValue) {
+                const errorMessage = errors[currentField]?.message || `The ${currentField} field is empty. Please try again.`;
+                play(errorMessage);
+            } else {
+                play(`${currentField.charAt(0).toUpperCase() + currentField.slice(1)} is now set.`, () => {
+                    if (currentField === 'to') {
+                        setStep('subject');
+                    } else if (currentField === 'subject') {
+                        setStep('body');
+                    } else if (currentField === 'body') {
+                        setStep('review');
+                    }
+                });
+            }
+        } else {
+             play(`I didn't catch that. The ${currentField} field is still empty.`);
+        }
+    } catch (error) {
+       console.error("Transcription failed:", error);
+       toast({ variant: "destructive", title: "Transcription Failed", description: "I had trouble converting that to text. Let's try that again." });
+    } finally {
+        setIsProcessing(false);
+    }
+  }, [step, setValue, getValues, toast, trigger, errors, play]);
+
+  const onSubmit = React.useCallback(async (data: z.infer<typeof emailSchema>) => {
+    setIsSending(true);
+    play("Sending email...");
+
+    let category: Email['category'] = 'important';
+    try {
+        const result = await categorizeEmail({ subject: data.subject, body: data.body });
+        category = result.category;
+    } catch (e) {
+        console.error("Failed to categorize sent email", e);
+    }
+    
+    const newEmail: Email = {
+        id: Date.now().toString(),
+        from: { name: "Me", email: "user@vocalmail.com" },
+        to: { name: data.to.split('@')[0], email: data.to },
+        subject: data.subject,
+        body: data.body,
+        date: new Date().toISOString(),
+        read: true,
+        tag: 'sent',
+        category: category,
+        priority: 2,
+    };
+
+    allEmails.unshift(newEmail);
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
+    setIsSending(false);
+    toast({ title: "Email Sent!", description: `Email to ${data.to} sent successfully.` });
+    play("Email sent successfully. Redirecting to your sent folder.", () => {
+        router.push('/sent?autorun=read_list');
+    });
+  }, [router, toast, play]);
   
   const stopListening = React.useCallback(() => {
     if (mediaRecorderRef.current?.state === "recording") {
@@ -119,6 +162,14 @@ export default function ComposePage() {
 
   const handleRecognitionResult = React.useCallback((result: RecognizeCommandOutput) => {
     const { command, transcription, correctionField } = result;
+    
+    const isDictation = command === 'unknown' && transcription;
+    const isReviewPhase = step === 'review' || step === 'correcting';
+
+    if (isDictation && !isReviewPhase) {
+        handleTranscription(transcription!);
+        return;
+    }
 
     switch(command) {
         case 'action_focus_to':
@@ -131,31 +182,25 @@ export default function ComposePage() {
             setStep('body');
             break;
         case 'action_send':
-            setStep('review');
-            handleSubmit(onSubmit)();
+            if (isReviewPhase) {
+                handleSubmit(onSubmit)();
+            }
             break;
         case 'action_proofread_email':
-            setStep('review');
+             setStep('review');
             break;
         case 'action_correct_email':
-            if (correctionField) {
-                setStep(correctionField);
-            } else {
-                setStep('correcting');
-            }
+             setStep(correctionField || 'correcting');
             break;
         case 'action_help':
             play("You are composing an email. Say 'recipient', 'subject', or 'body' to switch fields. Hold the mic to dictate. Say 'proofread' when you are finished.");
             break;
-        case 'unknown':
-            if (transcription) {
-                handleTranscription(transcription);
-            }
-            break;
         default:
-             play(`Sorry, the command ${command.replace(/_/g, ' ')} is not available here.`);
+             if (!isDictation) {
+                play(`Sorry, the command ${command.replace(/_/g, ' ')} is not available here.`);
+             }
     }
-  }, [handleSubmit, onSubmit, play, handleTranscription]);
+  }, [step, handleSubmit, onSubmit, play, handleTranscription]);
 
 
   const processAudio = React.useCallback(async (audioDataUri: string) => {
@@ -205,7 +250,6 @@ export default function ComposePage() {
   }, [isListening, isProcessing, isPlaying, toast, processAudio]);
   
   React.useEffect(() => {
-    // Stop speech and recording on unmount
     return () => {
       stopSpeech();
       if (mediaRecorderRef.current?.state === 'recording') {
@@ -214,31 +258,35 @@ export default function ComposePage() {
     };
   }, [stopSpeech]);
 
-  // Handle step transitions and audio prompts
   React.useEffect(() => {
     if(isSending || isPlaying || isProcessing) return;
     
-    switch(step) {
-        case 'to':
-            play("Recipient field is active. Hold the mic to dictate, or say 'subject' or 'body' to switch.");
-            break;
-        case 'subject':
-            play("Subject field is active.");
-            break;
-        case 'body':
-            play("Body field is active.");
-            break;
-        case 'review':
-            handleProofread();
-            break;
-        case 'correcting':
-            play("Which field would you like to correct? Recipient, subject, or body?");
-            break;
+    const playStepPrompt = () => {
+        switch(step) {
+            case 'to':
+                play("Who is the recipient? Hold the mic to dictate, or say 'subject' or 'body' to switch.");
+                break;
+            case 'subject':
+                play("What is the subject?");
+                break;
+            case 'body':
+                play("Please dictate the body of the email.");
+                break;
+            case 'review':
+                handleProofread();
+                break;
+            case 'correcting':
+                play("Which field would you like to correct? Recipient, subject, or body?");
+                break;
+        }
     }
+
+    // Give a slight delay for form state to update before playing the prompt
+    const timer = setTimeout(playStepPrompt, 100);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, isSending, isProcessing]);
 
-  // Handle pre-filled form from search params
   React.useEffect(() => {
     const to = searchParams.get("to");
     const subject = searchParams.get("subject");
@@ -255,16 +303,13 @@ export default function ComposePage() {
     } else {
       const autorun = searchParams.get('autorun');
       if (autorun === 'read_list') {
-          setStep('to');
           router.replace('/compose', {scroll: false});
-      } else {
-         setStep('to');
       }
+       setStep('to');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, setValue, trigger, play]);
+  }, [searchParams, setValue, trigger]);
 
-  // Handle spacebar for dictation
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.code === 'Space' && !event.repeat) {
@@ -293,11 +338,8 @@ export default function ComposePage() {
   const isInteracting = isListening || isProcessing || isPlaying;
   
   const getFieldHelperText = (field: CompositionStep) => {
-    if (step === field) {
-        if (isListening) return "Listening...";
-        if (isProcessing) return "Processing...";
-        if (isPlaying) return "Speaking...";
-        return `Hold mic to dictate, or say 'proofread' when done.`;
+    if (step === field && !isInteracting) {
+        return `Hold Spacebar or the mic button to dictate.`;
     }
     return "";
   }
@@ -317,7 +359,7 @@ export default function ComposePage() {
           <CardHeader>
             <CardTitle>Compose Email</CardTitle>
             <CardDescription>
-              Hold the microphone to dictate for the active field or to issue a command like 'subject' or 'proofread'.
+              The app will guide you. Say 'recipient', 'subject', or 'body' anytime to switch fields.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -366,7 +408,7 @@ export default function ComposePage() {
                   )}
                 />
                 <div className="flex flex-col sm:flex-row gap-2 items-center">
-                  <Button type="submit" disabled={isSending || isInteracting} size="lg" className="w-full sm:w-auto">
+                  <Button type="submit" disabled={isSending || isInteracting || step !== 'review'} size="lg" className="w-full sm:w-auto">
                     {isSending ? (
                       <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending...</>
                     ) : (
@@ -421,3 +463,5 @@ export default function ComposePage() {
     </>
   );
 }
+
+    
