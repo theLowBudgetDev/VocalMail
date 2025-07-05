@@ -1,3 +1,4 @@
+
 // text-to-voice-conversion.ts
 'use server';
 
@@ -54,6 +55,11 @@ const textToSpeechFlow = ai.defineFlow(
       media.url.substring(media.url.indexOf(',') + 1),
       'base64'
     );
+
+    if (audioBuffer.length === 0) {
+        throw new Error('TTS returned empty audio data.');
+    }
+    
     return {
       media: 'data:audio/wav;base64,' + (await toWav(audioBuffer)),
     };

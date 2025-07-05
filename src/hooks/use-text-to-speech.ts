@@ -14,7 +14,7 @@ export const useTextToSpeech = () => {
   const { toast } = useToast();
 
   const play = useCallback(async (text: string, onEnd?: () => void) => {
-    if (isGenerating || !text) {
+    if (isGenerating || !text.trim()) {
       onEnd?.();
       return;
     };
@@ -56,18 +56,19 @@ export const useTextToSpeech = () => {
       }
     }
 
-    if (audioCache.has(text)) {
+    const trimmedText = text.trim();
+    if (audioCache.has(trimmedText)) {
       setIsPlaying(true);
-      playAudio(audioCache.get(text)!);
+      playAudio(audioCache.get(trimmedText)!);
       return;
     }
 
     setIsGenerating(true);
     setIsPlaying(true);
     try {
-      const { media } = await textToSpeechConversion({ text });
+      const { media } = await textToSpeechConversion({ text: trimmedText });
       
-      audioCache.set(text, media);
+      audioCache.set(trimmedText, media);
       
       playAudio(media);
 
