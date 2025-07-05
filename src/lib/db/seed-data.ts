@@ -1,35 +1,17 @@
-// All users have the password "password" for simplicity
+
+// The default password for all mock users is 'password'.
 export const users = [
-    { id: 1, name: 'Charlie Davis', email: 'charlie.davis@example.com', avatar: 'C' },
-    { id: 2, name: 'Alice Williams', email: 'alice.williams@example.com', avatar: 'A' },
-    { id: 3, name: 'Frank Miller', email: 'frank.miller@example.com', avatar: 'F' },
-    { id: 4, name: 'Grace Lee', email: 'grace.lee@example.com', avatar: 'G' },
-    { id: 5, name: 'Bob Johnson', email: 'bob.johnson@example.com', avatar: 'B' },
+    { id: 1, name: 'Charlie Davis', email: 'charlie.davis@example.com', avatar: 'C', password: 'password' },
+    { id: 2, name: 'Alice Williams', email: 'alice.williams@example.com', avatar: 'A', password: 'password' },
+    { id: 3, name: 'Frank Miller', email: 'frank.miller@example.com', avatar: 'F', password: 'password' },
+    { id: 4, name: 'Grace Lee', email: 'grace.lee@example.com', avatar: 'G', password: 'password' },
+    { id: 5, name: 'Bob Johnson', email: 'bob.johnson@example.com', avatar: 'B', password: 'password' },
 ];
 
-// Contacts are defined by email for easier lookup during seeding
-export const contacts = [
-    // Charlie's Contacts
-    { ownerEmail: 'charlie.davis@example.com', contactUserEmail: 'alice.williams@example.com' },
-    { ownerEmail: 'charlie.davis@example.com', contactUserEmail: 'bob.johnson@example.com' },
-
-    // Alice's Contacts
-    { ownerEmail: 'alice.williams@example.com', contactUserEmail: 'charlie.davis@example.com' },
-    { ownerEmail: 'alice.williams@example.com', contactUserEmail: 'frank.miller@example.com' },
-    { ownerEmail: 'alice.williams@example.com', contactUserEmail: 'grace.lee@example.com' },
-
-    // Frank's Contacts
-    { ownerEmail: 'frank.miller@example.com', contactUserEmail: 'alice.williams@example.com' },
-    { ownerEmail: 'frank.miller@example.com', contactUserEmail: 'bob.johnson@example.com' },
-
-    // Grace's Contacts
-    { ownerEmail: 'grace.lee@example.com', contactUserEmail: 'alice.williams@example.com' },
-    
-    // Bob has no contacts
-];
+// Contacts will be seeded dynamically in setup.ts so that every user is a contact of every other user.
 
 // The `to` array contains emails of recipients.
-// `tag` refers to the initial state in the recipient's inbox.
+// `status` refers to the initial state in the recipient's inbox.
 export const emails = [
     {
         from: 'alice.williams@example.com',
@@ -38,7 +20,7 @@ export const emails = [
         body: 'Team, excited to kick off Project Phoenix! The initial documents are attached. Please review them before our meeting on Monday. Let\'s make this a success!',
         date: '2024-05-20T10:00:00Z',
         read: false,
-        tag: 'inbox',
+        status: 'inbox',
         category: 'important',
     },
     {
@@ -48,7 +30,7 @@ export const emails = [
         body: 'Thanks, Alice. The documents look great. I have a few questions about the timeline, which I\'ll bring up on Monday. Looking forward to it.',
         date: '2024-05-20T11:30:00Z',
         read: false,
-        tag: 'inbox',
+        status: 'inbox',
         category: 'important',
     },
     {
@@ -58,7 +40,7 @@ export const emails = [
         body: 'All looks good on my end. I\'ve already started on my assigned tasks.',
         date: '2024-05-20T12:00:00Z',
         read: true,
-        tag: 'inbox',
+        status: 'inbox',
         category: 'important',
     },
     {
@@ -68,7 +50,7 @@ export const emails = [
         body: 'Hi Alice, here are the latest design mockups for your review. Please provide feedback by EOD tomorrow. Thanks!',
         date: '2024-05-19T15:00:00Z',
         read: true,
-        tag: 'archive',
+        status: 'archive',
         category: 'important',
     },
     {
@@ -78,7 +60,7 @@ export const emails = [
         body: 'Hey guys, are we still on for lunch this Friday? Let me know!',
         date: '2024-05-21T09:00:00Z',
         read: false,
-        tag: 'inbox',
+        status: 'inbox',
         category: 'personal',
     },
     {
@@ -88,7 +70,7 @@ export const emails = [
         body: 'I\'m in!',
         date: '2024-05-21T09:15:00Z',
         read: false,
-        tag: 'inbox',
+        status: 'inbox',
         category: 'personal',
     }
 ];

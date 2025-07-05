@@ -1,44 +1,56 @@
 
-import { login } from "@/lib/actions";
+import { register } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { getLoggedInUser } from "@/lib/actions";
 
-export default async function LoginPage({
+export default function RegisterPage({
   searchParams,
 }: {
   searchParams: { error?: string };
 }) {
-  const loggedInUser = await getLoggedInUser();
-  if (loggedInUser) {
-    redirect('/inbox');
-  }
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
-        <form action={login}>
+        <form action={register}>
           <CardHeader>
-            <CardTitle>Login</CardTitle>
-            <CardDescription>Enter your credentials to access your VocalMail account.</CardDescription>
+            <CardTitle>Create an Account</CardTitle>
+            <CardDescription>
+              Enter your details to create your VocalMail account.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-             {searchParams.error && (
+            {searchParams.error && (
               <div className="bg-destructive/10 text-destructive border border-destructive/20 p-3 rounded-md text-sm">
                 {searchParams.error}
               </div>
             )}
+            <div className="space-y-2">
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                name="name"
+                type="text"
+                placeholder="Your Name"
+                required
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 name="email"
                 type="email"
-                placeholder="charlie.davis@example.com"
+                placeholder="your.email@example.com"
                 required
               />
             </div>
@@ -46,16 +58,15 @@ export default async function LoginPage({
               <Label htmlFor="password">Password</Label>
               <Input id="password" name="password" type="password" required />
             </div>
-             <p className="text-xs text-muted-foreground">Default password for mock users is 'password'.</p>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
             <Button type="submit" className="w-full">
-              Login
+              Create Account
             </Button>
             <p className="text-center text-sm text-muted-foreground">
-              Don&apos;t have an account?{" "}
-              <Link href="/register" className="underline hover:text-primary">
-                Sign up
+              Already have an account?{" "}
+              <Link href="/login" className="underline hover:text-primary">
+                Login
               </Link>
             </p>
           </CardFooter>
@@ -64,3 +75,4 @@ export default async function LoginPage({
     </div>
   );
 }
+

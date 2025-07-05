@@ -13,17 +13,20 @@ import { redirect } from 'next/navigation';
 const SESSION_COOKIE_NAME = 'vocalmail_session';
 
 export async function login(formData: FormData) {
-    const userId = formData.get('userId');
-    if (!userId) {
-        throw new Error('User ID is required');
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+
+    if (!email || !password) {
+        return redirect('/login?error=Email and password are required.');
     }
 
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
-    if (!user) {
-        throw new Error('User not found');
+    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as User | undefined;
+
+    if (!user || user.password !== password) {
+         return redirect('/login?error=Invalid email or password.');
     }
 
-    cookies().set(SESSION_COOKIE_NAME, String(userId), {
+    cookies().set(SESSION_COOKIE_NAME, String(user.id), {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         maxAge: 60 * 60 * 24 * 7, // One week
@@ -32,6 +35,53 @@ export async function login(formData: FormData) {
     
     redirect('/inbox');
 }
+
+export async function register(formData: FormData) {
+    const name = formData.get('name') as string;
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+
+    if (!name || !email || !password) {
+        return redirect('/register?error=All fields are required.');
+    }
+
+    const existingUser = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+    if (existingUser) {
+        return redirect('/register?error=An account with this email already exists.');
+    }
+
+    // Create the new user
+    const avatar = name.charAt(0).toUpperCase();
+    const newUserResult = db.prepare('INSERT INTO users (name, email, password, avatar) VALUES (?, ?, ?, ?)')
+        .run(name, email, password, avatar);
+    
+    const newUserId = newUserResult.lastInsertRowid as number;
+
+    // Make all existing users contacts of the new user, and vice versa
+    const allUsers = db.prepare('SELECT id FROM users').all() as { id: number }[];
+    const insertContact = db.prepare('INSERT INTO contacts (ownerId, contactUserId) VALUES (?, ?)');
+    
+    const tx = db.transaction(() => {
+        for (const user of allUsers) {
+            if (user.id !== newUserId) {
+                insertContact.run(newUserId, user.id); // New user gets old user
+                insertContact.run(user.id, newUserId); // Old user gets new user
+            }
+        }
+    });
+    tx();
+
+    // Log the new user in
+    cookies().set(SESSION_COOKIE_NAME, String(newUserId), {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 60 * 60 * 24 * 7, // One week
+        path: '/',
+    });
+
+    redirect('/inbox');
+}
+
 
 export async function logout() {
     cookies().delete(SESSION_COOKIE_NAME);
@@ -140,7 +190,7 @@ export async function searchEmails(userId: number, searchTerm: string): Promise<
     
     // Search own sent items
     const sentQuery = `
-        SELECT e.*, s.name as senderName, s.email as senderEmail, 'sent' as tag
+        SELECT e.*, s.name as senderName, s.email as senderEmail, 'sent' as status
         FROM emails e
         JOIN users s ON e.senderId = s.id
         WHERE e.senderId = ?
@@ -151,7 +201,7 @@ export async function searchEmails(userId: number, searchTerm: string): Promise<
 
     // Search received items
     const receivedQuery = `
-        SELECT e.*, s.name as senderName, s.email as senderEmail, er.status as tag
+        SELECT e.*, s.name as senderName, s.email as senderEmail, er.status as status
         FROM emails e
         JOIN users s ON e.senderId = s.id
         JOIN email_recipients er ON er.emailId = e.id
@@ -160,26 +210,25 @@ export async function searchEmails(userId: number, searchTerm: string): Promise<
         AND (e.subject LIKE ? OR e.body LIKE ? OR s.name LIKE ?)
     `;
     const receivedResults = db.prepare(receivedQuery).all(userId, searchQuery, searchQuery, searchQuery) as any[];
-
-    // Combine and format results
+    
     const combined = [...sentResults, ...receivedResults].map(e => ({
         id: e.id,
         subject: e.subject,
         body: e.body,
         sentAt: e.sentAt,
         category: e.category,
-        tag: e.tag,
+        status: e.status, // Use the status from the query
         senderId: e.senderId,
         senderName: e.senderName,
         senderEmail: e.senderEmail,
     }));
     
-    // Deduplicate and sort
-    const uniqueEmails = Array.from(new Map(combined.map(e => [e.id, e])).values());
+    const uniqueEmails = Array.from(new Map(combined.map(e => [e.id + e.status, e])).values());
     uniqueEmails.sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime());
 
     return uniqueEmails as Email[];
 }
+
 
 export async function getContacts(userId: number): Promise<Contact[]> {
     const query = `
@@ -206,16 +255,32 @@ export async function archiveEmail(emailId: number, userId: number) {
 }
 
 export async function deleteUserEmail(emailId: number, userId: number, type: 'inbox' | 'archive' | 'sent' | 'search', originalTag?: string) {
+    // If it's a sent email, we soft delete from the sender's view.
     if (type === 'sent') {
-        // Soft delete from sender's view
         const stmt = db.prepare("UPDATE emails SET senderStatus = 'deleted' WHERE id = ? AND senderId = ?");
         stmt.run(emailId, userId);
-    } else {
-        // Soft delete from recipient's view
+    } 
+    // For received emails (inbox, archive), we soft delete from the recipient's view.
+    else if (type === 'inbox' || type === 'archive') {
         const stmt = db.prepare("UPDATE email_recipients SET status = 'deleted' WHERE emailId = ? AND recipientId = ?");
         stmt.run(emailId, userId);
     }
-    revalidatePath(`/${originalTag || type}`);
+    // For search, we need to know if the user is the sender or receiver
+    else if (type === 'search' && originalTag) {
+         if (originalTag === 'sent') {
+            const stmt = db.prepare("UPDATE emails SET senderStatus = 'deleted' WHERE id = ? AND senderId = ?");
+            stmt.run(emailId, userId);
+         } else {
+            const stmt = db.prepare("UPDATE email_recipients SET status = 'deleted' WHERE emailId = ? AND recipientId = ?");
+            stmt.run(emailId, userId);
+         }
+    }
+    
+    // Revalidate all potentially affected paths
+    revalidatePath('/inbox');
+    revalidatePath('/archive');
+    revalidatePath('/sent');
+    revalidatePath('/search');
 }
 
 

@@ -3,6 +3,7 @@ export type User = {
     name: string;
     email: string;
     avatar: string;
+    password?: string;
 };
 
 export type Contact = {
@@ -23,7 +24,7 @@ export type Email = {
     category: EmailCategory['id'];
     // Properties below are for recipient view
     read?: boolean;
-    status?: 'inbox' | 'archive' | 'deleted';
+    status?: 'inbox' | 'archive' | 'deleted' | 'sent';
      // Property below is for sender view
     recipients?: { name: string; email: string }[];
 };

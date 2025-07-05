@@ -11,6 +11,7 @@ VocalMail is a final year project that re-imagines the email experience for visu
 - **Full Contact Management:** Add, search, delete, and initiate emails to your contacts, all through voice commands.
 - **Global Email Search:** Find any email, no matter which folder it's in, by searching for content in its subject or body using a voice command.
 - **Text-to-Speech & Caching:** All on-screen text and email content can be read aloud. Responses are cached to provide a snappy user experience and reduce API usage.
+- **Full User Authentication:** Secure login and registration system with persistent user sessions.
 
 ## Technology Stack
 
@@ -50,6 +51,14 @@ VocalMail is a final year project that re-imagines the email experience for visu
 4.  **(Optional) Manually Reset the Database:**
     If you ever want to reset the database to its initial state, simply delete the `vocalmail.db` file in the root of the project and restart the development server (`npm run dev`). A new database file will be created and seeded with fresh data.
 
+### Logging In
+
+The application is seeded with several mock user accounts. You can use any of their emails to log in.
+- **Email:** `charlie.davis@example.com`, `alice.williams@example.com`, etc.
+- **Password (for all users):** `password`
+
+You can also register a new account.
+
 ### Running the Application
 
 You need to run two processes in separate terminals: the Next.js frontend server and the Genkit AI server.
@@ -69,4 +78,4 @@ The application will be available at `http://localhost:9002`.
 
 ## How It Works
 
-The application uses the browser's `MediaRecorder` API to capture voice commands. This audio is sent to a Genkit AI flow, which uses Google's AI models to first transcribe the audio and then understand the user's intent. Based on the recognized command, the application performs an action, such as navigating to a new page, reading an email aloud, or filtering a list. All text-to-speech is handled by another AI flow and cached on the client to ensure a smooth and efficient experience.
+The application uses the browser's `MediaRecorder` API to capture voice commands. This audio is sent to a Genkit AI flow, which uses Google's AI models to first transcribe the audio and then understand the user's intent. Based on the recognized command, the application performs an action, such as navigating to a new page, reading an email aloud, or filtering a list. All text-to-speech is handled by another AI flow and cached on the client to ensure a smooth and efficient experience. All user and email data is stored in a local SQLite database for persistence.
