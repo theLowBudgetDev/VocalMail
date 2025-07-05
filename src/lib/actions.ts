@@ -5,6 +5,56 @@ import { revalidatePath } from 'next/cache';
 import { db } from './db';
 import type { User, Email, Contact } from './data';
 import { categorizeEmail } from '@/ai/flows/email-categorization-flow';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+
+// --- AUTH ACTIONS ---
+
+const SESSION_COOKIE_NAME = 'vocalmail_session';
+
+export async function login(formData: FormData) {
+    const userId = formData.get('userId');
+    if (!userId) {
+        throw new Error('User ID is required');
+    }
+
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+    if (!user) {
+        throw new Error('User not found');
+    }
+
+    cookies().set(SESSION_COOKIE_NAME, String(userId), {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 60 * 60 * 24 * 7, // One week
+        path: '/',
+    });
+    
+    redirect('/inbox');
+}
+
+export async function logout() {
+    cookies().delete(SESSION_COOKIE_NAME);
+    redirect('/login');
+}
+
+export async function getLoggedInUser(): Promise<User | null> {
+    const userId = cookies().get(SESSION_COOKIE_NAME)?.value;
+    if (!userId) {
+        return null;
+    }
+
+    try {
+        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as User | null;
+        return user;
+    } catch (error) {
+        console.error("Database error fetching logged in user:", error);
+        return null;
+    }
+}
+
+
+// --- DATA ACTIONS ---
 
 export async function getUsers(): Promise<User[]> {
     return db.prepare('SELECT * FROM users').all() as User[];
@@ -189,9 +239,9 @@ export async function addContact(ownerId: number, contactEmail: string) {
     revalidatePath('/contacts');
 }
 
-export async function deleteContact(ownerId: number, contactUserId: number) {
+export async function deleteContact(ownerId: number, contactId: number) {
     const stmt = db.prepare('DELETE FROM contacts WHERE ownerId = ? AND contactUserId = ?');
-    stmt.run(ownerId, contactUserId);
+    stmt.run(ownerId, contactId);
     revalidatePath('/contacts');
 }
 

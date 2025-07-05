@@ -3,12 +3,10 @@
 
 import * as React from 'react';
 import type { User } from '@/lib/data';
-import { getUsers } from '@/lib/actions';
+import { getLoggedInUser } from '@/lib/actions';
 
 interface CurrentUserContextType {
     currentUser: User | null;
-    users: User[];
-    setCurrentUser: (user: User) => void;
     isLoading: boolean;
 }
 
@@ -16,37 +14,25 @@ const CurrentUserContext = React.createContext<CurrentUserContextType | null>(nu
 
 export function CurrentUserProvider({ children }: { children: React.ReactNode }) {
     const [currentUser, setCurrentUser] = React.useState<User | null>(null);
-    const [users, setUsers] = React.useState<User[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
 
     React.useEffect(() => {
-        async function fetchUsers() {
+        async function fetchUser() {
             try {
-                const fetchedUsers = await getUsers();
-                setUsers(fetchedUsers);
-                if (fetchedUsers.length > 0) {
-                    const storedUserId = localStorage.getItem('vocalmail_current_user_id');
-                    const initialUser = storedUserId ? fetchedUsers.find(u => u.id === parseInt(storedUserId, 10)) : fetchedUsers[0];
-                    setCurrentUser(initialUser || fetchedUsers[0]);
-                }
+                const user = await getLoggedInUser();
+                setCurrentUser(user);
             } catch (error) {
-                console.error("Failed to fetch users", error);
+                console.error("Failed to fetch logged in user", error);
+                setCurrentUser(null);
             } finally {
                 setIsLoading(false);
             }
         }
-        fetchUsers();
+        fetchUser();
     }, []);
-
-    const handleSetCurrentUser = (user: User) => {
-        setCurrentUser(user);
-        localStorage.setItem('vocalmail_current_user_id', user.id.toString());
-    };
 
     const value = {
         currentUser,
-        users,
-        setCurrentUser: handleSetCurrentUser,
         isLoading,
     };
 

@@ -10,13 +10,13 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu"
 import { useCurrentUser } from "@/hooks/use-current-user"
-import { Check, User, Loader2 } from "lucide-react"
+import { logout } from "@/lib/actions"
+import { User, Loader2, LogOut } from "lucide-react"
 
 export function UserNav() {
-  const { currentUser, users, setCurrentUser, isLoading } = useCurrentUser();
+  const { currentUser, isLoading } = useCurrentUser();
 
   if (isLoading) {
     return <Loader2 className="h-6 w-6 animate-spin" />
@@ -55,22 +55,14 @@ export function UserNav() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-            <DropdownMenuLabel>Switch Account</DropdownMenuLabel>
-            {users.map((user) => (
-                 <DropdownMenuItem key={user.id} onClick={() => setCurrentUser(user)}>
-                    <Avatar className="mr-2 h-5 w-5">
-                        <AvatarFallback className="text-xs">{user.avatar}</AvatarFallback>
-                    </Avatar>
-                    <span>{user.name}</span>
-                    {currentUser.id === user.id && <Check className="ml-auto h-4 w-4" />}
-                 </DropdownMenuItem>
-            ))}
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem>
-          Log out
-        </DropdownMenuItem>
+        <form action={logout}>
+            <DropdownMenuItem asChild>
+                 <button type="submit" className="w-full cursor-pointer flex items-center">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Log out</span>
+                </button>
+            </DropdownMenuItem>
+        </form>
       </DropdownMenuContent>
     </DropdownMenu>
   )
