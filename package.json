@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "npm run db:setup && next dev --turbopack -p 9002",
+    "dev": "npm run db:setup && next dev --turbopack",
     "db:setup": "tsx src/lib/db/setup.ts",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
