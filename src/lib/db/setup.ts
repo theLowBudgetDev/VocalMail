@@ -1,10 +1,15 @@
 
+<<<<<<< HEAD
+=======
+import fs from 'fs';
+>>>>>>> f17c8dd (you observe i rolled back again.)
 import path from 'path';
 import fs from 'fs';
 import Database from 'better-sqlite3';
 import { users, emails } from './seed-data';
 
 const dbPath = path.resolve('vocalmail.db');
+<<<<<<< HEAD
 const dbExists = fs.existsSync(dbPath);
 const db = new Database(dbPath);
 
@@ -12,6 +17,19 @@ db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
 const createTables = `
+=======
+
+if (fs.existsSync(dbPath)) {
+  console.log('Database already exists. Skipping setup.');
+} else {
+  console.log('Database not found. Creating and seeding a new one...');
+  
+  const db = new Database(dbPath);
+  db.pragma('journal_mode = WAL');
+  db.pragma('foreign_keys = ON');
+
+  const createTables = `
+>>>>>>> f17c8dd (you observe i rolled back again.)
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
@@ -49,8 +67,9 @@ const createTables = `
         FOREIGN KEY (emailId) REFERENCES emails(id) ON DELETE CASCADE,
         FOREIGN KEY (recipientId) REFERENCES users(id) ON DELETE CASCADE
     );
-`;
+  `;
 
+<<<<<<< HEAD
 db.exec(createTables);
 console.log('Tables created or already exist.');
 
@@ -103,6 +122,53 @@ if (!dbExists) {
     console.log('Database seeded successfully.');
 } else {
     console.log('Database already exists, skipping seeding.');
+=======
+  db.exec(createTables);
+  console.log('Tables created successfully.');
+
+  const insertUser = db.prepare('INSERT INTO users (name, email, avatar) VALUES (?, ?, ?)');
+  for (const user of users) {
+      insertUser.run(user.name, user.email, user.avatar);
+  }
+  console.log('Users seeded successfully.');
+
+  const getUserId = (email: string) => {
+      const user = db.prepare('SELECT id FROM users WHERE email = ?').get(email) as { id: number };
+      return user.id;
+  };
+
+  const insertContact = db.prepare('INSERT INTO contacts (ownerId, contactUserId) VALUES (?, ?)');
+  for (const contact of contacts) {
+      const ownerId = getUserId(contact.ownerEmail);
+      const contactUserId = getUserId(contact.contactUserEmail);
+      if (ownerId && contactUserId) {
+          insertContact.run(ownerId, contactUserId);
+      }
+  }
+  console.log('Contacts seeded successfully.');
+
+  const insertEmail = db.prepare('INSERT INTO emails (senderId, subject, body, sentAt, category) VALUES (?, ?, ?, ?, ?)');
+  const insertRecipient = db.prepare('INSERT INTO email_recipients (emailId, recipientId, status, read) VALUES (?, ?, ?, ?)');
+
+  for (const email of emails) {
+      const senderId = getUserId(email.from);
+      if (!senderId) continue;
+
+      const emailResult = insertEmail.run(senderId, email.subject, email.body, email.date, email.category);
+      const emailId = emailResult.lastInsertRowid as number;
+      
+      for (const recipientEmail of email.to) {
+          const recipientId = getUserId(recipientEmail);
+          if(recipientId) {
+              insertRecipient.run(emailId, recipientId, email.tag, email.read ? 1 : 0);
+          }
+      }
+  }
+  console.log('Emails seeded successfully.');
+
+  db.close();
+  console.log('Database setup complete.');
+>>>>>>> f17c8dd (you observe i rolled back again.)
 }
 
 // This is just to satisfy the module system, the script's purpose is its side effects.
