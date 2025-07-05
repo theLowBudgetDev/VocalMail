@@ -39,7 +39,7 @@ VocalMail is a final year project that re-imagines the email experience for visu
     ```bash
     npm install
     ```
-    After installation, a `postinstall` script will automatically run to set up the local SQLite database (`vocalmail.db`) and populate it with mock data. This ensures the application is ready to run immediately.
+    After installation, a `postinstall` script will automatically run to initialize the local SQLite database (`vocalmail.db`) if it doesn't exist. On the first run, it will also be populated with mock data. Subsequent runs of `npm install` or `npm run dev` will not erase your data.
 
 3.  **Set up environment variables:**
     Create a file named `.env` in the root of the project and add your Google AI API key:
@@ -48,10 +48,7 @@ VocalMail is a final year project that re-imagines the email experience for visu
     ```
 
 4.  **(Optional) Manually Reset the Database:**
-    If you ever want to reset the database to its initial state, you can run the setup script manually:
-    ```bash
-    npm run db:setup
-    ```
+    If you ever want to reset the database to its initial state, simply delete the `vocalmail.db` file in the root of the project and restart the development server (`npm run dev`). A new database file will be created and seeded with fresh data.
 
 ### Running the Application
 
