@@ -66,7 +66,11 @@ export const useTextToSpeech = () => {
     setIsGenerating(true);
     setIsPlaying(true);
     try {
-      const { media } = await textToSpeechConversion({ text: trimmedText });
+      const result = await textToSpeechConversion({ text: trimmedText });
+      if (!result?.media) {
+        throw new Error("TTS API did not return valid media data.");
+      }
+      const { media } = result;
       
       audioCache.set(trimmedText, media);
       
