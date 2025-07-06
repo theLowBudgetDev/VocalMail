@@ -12,16 +12,17 @@ import { redirect } from 'next/navigation';
 const SESSION_COOKIE_NAME = 'vocalmail_session';
 
 export async function login(formData: FormData) {
-    const userId = formData.get('userId') as string;
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
 
-    if (!userId) {
-        return redirect('/login?error=Please select a user.');
+    if (!email || !password) {
+        return redirect('/login?error=Email and password are required.');
     }
 
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as User | undefined;
+    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as User | undefined;
 
-    if (!user) {
-         return redirect('/login?error=Invalid user selected.');
+    if (!user || user.password !== password) {
+         return redirect('/login?error=Invalid email or password.');
     }
 
     cookies().set(SESSION_COOKIE_NAME, String(user.id), {
@@ -33,22 +34,6 @@ export async function login(formData: FormData) {
     
     redirect('/inbox');
 }
-
-export async function switchUser(formData: FormData) {
-    const userId = formData.get('userId') as string;
-    if (!userId) {
-        return;
-    }
-    cookies().set(SESSION_COOKIE_NAME, String(userId), {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 60 * 60 * 24 * 7, // One week
-        path: '/',
-    });
-    revalidatePath('/', 'layout');
-    redirect('/inbox');
-}
-
 
 export async function logout() {
     cookies().delete(SESSION_COOKIE_NAME);

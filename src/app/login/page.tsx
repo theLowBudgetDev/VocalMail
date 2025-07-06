@@ -3,7 +3,7 @@ import { getUsers, getLoggedInUser, login } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { redirect } from "next/navigation";
 
 export default async function LoginPage({
@@ -16,15 +16,13 @@ export default async function LoginPage({
     redirect('/inbox');
   }
 
-  const users = await getUsers();
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
         <form action={login}>
           <CardHeader>
             <CardTitle>Welcome to VocalMail</CardTitle>
-            <CardDescription>Select a user to log in and start testing.</CardDescription>
+            <CardDescription>Enter your credentials to sign in.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
              {searchParams.error && (
@@ -33,19 +31,12 @@ export default async function LoginPage({
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="userId">Select User</Label>
-              <Select name="userId" required>
-                <SelectTrigger id="userId">
-                  <SelectValue placeholder="Select a user..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {users.map((user) => (
-                    <SelectItem key={user.id} value={String(user.id)}>
-                      {user.name} ({user.email})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" name="email" type="email" placeholder="user@example.com" defaultValue="charlie.davis@example.com" required />
+            </div>
+             <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input id="password" name="password" type="password" defaultValue="password" required />
             </div>
           </CardContent>
           <CardFooter>

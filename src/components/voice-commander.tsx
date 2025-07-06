@@ -47,9 +47,13 @@ export function VoiceCommander() {
     } else if (command.startsWith('action_')) {
       window.dispatchEvent(new CustomEvent('voice-command', { detail: result }));
     } else if (command === 'unknown') {
-      play("Sorry, that command isn't available on this page or I didn't understand.");
+       if (pathname !== '/compose') {
+          play("Sorry, that command isn't available on this page or I didn't understand.");
+       } else {
+          window.dispatchEvent(new CustomEvent('voice-command', { detail: result }));
+       }
     }
-  }, [router, play, stop]);
+  }, [router, play, stop, pathname]);
 
   const stopListening = React.useCallback(async () => {
     if (!isListening || mediaRecorderRef.current?.state !== "recording") {
