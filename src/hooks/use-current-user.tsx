@@ -12,11 +12,14 @@ interface CurrentUserContextType {
 
 const CurrentUserContext = React.createContext<CurrentUserContextType | null>(null);
 
-export function CurrentUserProvider({ children }: { children: React.ReactNode }) {
-    const [currentUser, setCurrentUser] = React.useState<User | null>(null);
-    const [isLoading, setIsLoading] = React.useState(true);
+export function CurrentUserProvider({ children, initialUser }: { children: React.ReactNode, initialUser?: User | null }) {
+    const [currentUser, setCurrentUser] = React.useState<User | null>(initialUser === undefined ? null : initialUser);
+    const [isLoading, setIsLoading] = React.useState(initialUser === undefined);
 
     React.useEffect(() => {
+        // If the user is passed from a Server Component, we don't need to fetch it again.
+        if (initialUser !== undefined) return;
+
         async function fetchUser() {
             try {
                 const user = await getLoggedInUser();
@@ -29,7 +32,7 @@ export function CurrentUserProvider({ children }: { children: React.ReactNode })
             }
         }
         fetchUser();
-    }, []);
+    }, [initialUser]);
 
     const value = {
         currentUser,

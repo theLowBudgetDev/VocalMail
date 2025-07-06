@@ -13,19 +13,17 @@ import {
   DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu"
 import { useCurrentUser } from "@/hooks/use-current-user"
-import { logout, switchUser, getUsers } from "@/lib/actions"
-import { User, Loader2, LogOut, Users, Check } from "lucide-react"
+import { logout, switchUser } from "@/lib/actions"
+import { User, Loader2, LogOut, Users } from "lucide-react"
 import type { User as UserType } from "@/lib/data"
 import * as React from "react"
 
-export function UserNav() {
-  const { currentUser, isLoading } = useCurrentUser();
-  const [allUsers, setAllUsers] = React.useState<UserType[]>([]);
+interface UserNavProps {
+  allUsers: UserType[];
+}
 
-  React.useEffect(() => {
-    // Fetch all users to allow switching
-    getUsers().then(setAllUsers);
-  }, []);
+export function UserNav({ allUsers }: UserNavProps) {
+  const { currentUser, isLoading } = useCurrentUser();
 
   if (isLoading) {
     return <Loader2 className="h-6 w-6 animate-spin" />
