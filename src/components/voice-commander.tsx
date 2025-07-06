@@ -5,7 +5,7 @@ import * as React from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Mic, Loader2 } from "lucide-react";
 
-import { recognizeCommand } from "@/ai/flows/command-recognition";
+import { recognizeCommand, type RecognizeCommandOutput } from "@/ai/flows/command-recognition";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useTextToSpeech } from "@/hooks/use-text-to-speech";
@@ -30,7 +30,12 @@ export function VoiceCommander() {
 
   const isComposePage = pathname === '/compose';
 
-  const handleCommand = React.useCallback((result: Awaited<ReturnType<typeof recognizeCommand>>) => {
+  const handleCommand = React.useCallback((result: RecognizeCommandOutput) => {
+    if (!result) {
+      play("Sorry, I didn't understand that. Please try again.");
+      return;
+    }
+
     const { command, searchQuery } = result;
     if (command.startsWith('navigate_')) {
       const page = command.replace('navigate_', '');
@@ -41,8 +46,8 @@ export function VoiceCommander() {
       router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
     } else if (command.startsWith('action_')) {
       window.dispatchEvent(new CustomEvent('voice-command', { detail: result }));
-    } else if (command !== 'unknown') {
-      play("Sorry, that command isn't available on this page.");
+    } else if (command === 'unknown') {
+      play("Sorry, that command isn't available on this page or I didn't understand.");
     }
   }, [router, play, stop]);
 

@@ -15,7 +15,7 @@ const RecognizeCommandInputSchema = z.object({
   audioDataUri: z
     .string()
     .describe(
-      "Audio data URI of the spoken command, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+      "Audio data URI of the spoken command, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'"
     ),
     currentPath: z.string().describe("The current URL path of the application.")
 });
@@ -132,6 +132,9 @@ const commandRecognitionFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
-    return output!;
+    if (!output) {
+      return { command: 'unknown', transcription: 'Command could not be recognized.' };
+    }
+    return output;
   }
 );
