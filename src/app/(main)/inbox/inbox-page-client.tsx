@@ -3,14 +3,17 @@
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Image from 'next/image';
 import { formatDistanceToNow } from "date-fns";
-import { Archive, Trash2, Loader2, PlayCircle, StopCircle, CornerUpLeft, ArrowLeft, FileText } from "lucide-react";
+import { format } from "date-fns";
+
+import { Archive, Trash2, Loader2, CornerUpLeft, ArrowLeft } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import type { Email } from "@/lib/data";
+import type { Email, User } from "@/lib/data";
 import { useTextToSpeech } from "@/hooks/use-text-to-speech";
 import { generateReplySuggestions } from "@/ai/flows/reply-suggestion-flow";
 import { summarizeEmail } from "@/ai/flows/summarize-email-flow";
@@ -25,12 +28,14 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { markEmailAsRead, archiveEmail, deleteUserEmail } from "@/lib/actions";
 import { toast } from "@/hooks/use-toast";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface InboxPageClientProps {
     initialEmails: Email[];
+    users: User[];
 }
 
-export default function InboxPageClient({ initialEmails }: InboxPageClientProps) {
+export default function InboxPageClient({ initialEmails, users }: InboxPageClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isMobile = useIsMobile();
@@ -43,6 +48,15 @@ export default function InboxPageClient({ initialEmails }: InboxPageClientProps)
   const [isSummarizing, setIsSummarizing] = React.useState(false);
 
   const { isPlaying, isGenerating, play, stop } = useTextToSpeech();
+  
+  const selectedEmail = React.useMemo(() => {
+    return inboxEmails.find((email) => email.id === selectedEmailId);
+  }, [selectedEmailId, inboxEmails]);
+
+  const senderOfSelectedEmail = React.useMemo(() => {
+    if (!selectedEmail) return null;
+    return users.find(u => u.id === selectedEmail.senderId);
+  }, [selectedEmail, users]);
 
   React.useEffect(() => {
     setInboxEmails(initialEmails);
@@ -105,10 +119,6 @@ export default function InboxPageClient({ initialEmails }: InboxPageClientProps)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMobile, inboxEmails]);
-
-  const selectedEmail = React.useMemo(() => {
-    return inboxEmails.find((email) => email.id === selectedEmailId);
-  }, [selectedEmailId, inboxEmails]);
   
   const handleGenerateSuggestions = React.useCallback(async (emailBody: string) => {
     if (!emailBody) return;
@@ -128,6 +138,7 @@ export default function InboxPageClient({ initialEmails }: InboxPageClientProps)
     if (selectedEmail) {
       stop();
       setIsSummarizing(true);
+      play("Summarizing... one moment.");
       try {
         const { summary } = await summarizeEmail({ emailBody: selectedEmail.body });
         play(summary);
@@ -149,9 +160,8 @@ export default function InboxPageClient({ initialEmails }: InboxPageClientProps)
     if (!email.read && currentUser) {
         try {
             await markEmailAsRead(email.id, currentUser.id);
-            // Optimistically update the UI, router.refresh() will get the real data
             setInboxEmails(prev => prev.map(e => e.id === email.id ? {...e, read: true} : e));
-            router.refresh(); // a full refresh would be too slow, this re-fetches server components
+            router.refresh(); 
         } catch (e) {
             console.error(e);
              toast({ variant: 'destructive', title: 'Failed to mark as read.' });
@@ -174,11 +184,12 @@ export default function InboxPageClient({ initialEmails }: InboxPageClientProps)
       stop();
       play("Email archived.");
       await archiveEmail(selectedEmailId, currentUser.id);
-      router.refresh();
       const nextEmails = inboxEmails.filter(e => e.id !== selectedEmailId);
       const nextSelectedId = isMobile ? null : (nextEmails.length > 0 ? nextEmails[0].id : null);
+      setInboxEmails(nextEmails);
       setSelectedEmailId(nextSelectedId || null);
       setSuggestions([]);
+      router.refresh();
     }
   }, [selectedEmailId, currentUser, stop, play, router, isMobile, inboxEmails]);
   
@@ -187,11 +198,12 @@ export default function InboxPageClient({ initialEmails }: InboxPageClientProps)
        stop();
        play("Email deleted.");
        await deleteUserEmail(selectedEmailId, currentUser.id, 'inbox');
-       router.refresh();
        const nextEmails = inboxEmails.filter(e => e.id !== selectedEmailId);
        const nextSelectedId = isMobile ? null : (nextEmails.length > 0 ? nextEmails[0].id : null);
+       setInboxEmails(nextEmails);
        setSelectedEmailId(nextSelectedId || null);
        setSuggestions([]);
+       router.refresh();
     }
   }, [selectedEmailId, currentUser, stop, play, router, isMobile, inboxEmails]);
 
@@ -209,9 +221,9 @@ export default function InboxPageClient({ initialEmails }: InboxPageClientProps)
     }
   }, [selectedEmail, router, stop]);
 
-
   React.useEffect(() => {
     const handleCommand = (event: CustomEvent) => {
+      if (!event.detail) return;
       const { command, emailId, suggestionId } = event.detail;
       switch (command) {
         case 'action_read_list':
@@ -254,53 +266,49 @@ export default function InboxPageClient({ initialEmails }: InboxPageClientProps)
     };
   }, [handleReadList, handlePlayEmail, handleArchiveEmail, handleDeleteEmail, handleReplyEmail, inboxEmails, play, suggestions, handleUseSuggestion, handleSummarizeEmail]);
 
-
   React.useEffect(() => {
-    return () => {
-      stop();
-    }
+    return () => stop();
   }, [selectedEmailId, stop]);
+
+  const getSenderAvatar = (senderId: number) => {
+      const sender = users.find(u => u.id === senderId);
+      return sender?.avatar || '';
+  }
 
   return (
     <TooltipProvider>
-      <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 h-[calc(100vh-4rem-1px)]">
+      <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 h-full">
         <div className={cn(
             "col-span-1 xl:col-span-1 border-r bg-card h-full flex flex-col",
             isMobile && selectedEmailId && "hidden"
           )}>
-          <div className="p-4">
-            <h2 className="text-2xl font-bold">Inbox</h2>
-          </div>
-          <Separator />
           <ScrollArea className="flex-1">
              {inboxEmails.length > 0 ? (
-                <ul className="divide-y p-2">
+                <ul className="p-2 space-y-2">
                     {inboxEmails.map((email, index) => (
-                        <li
-                            key={email.id}
+                        <li key={email.id}>
+                           <button
                             className={cn(
-                            "p-4 cursor-pointer hover:bg-muted/50 rounded-lg",
-                            selectedEmailId === email.id && "bg-muted"
+                                "w-full p-3 text-left rounded-lg transition-colors flex gap-3",
+                                selectedEmailId === email.id ? "bg-muted" : "hover:bg-muted/50"
                             )}
                             onClick={() => handleSelectEmail(email)}
-                        >
-                            <div className="flex justify-between items-start">
-                                <div className="font-semibold"><span className="text-muted-foreground text-xs mr-2">{index + 1}.</span>{email.senderName}</div>
-                                <div className="text-xs text-muted-foreground">
-                                    {formatDistanceToNow(new Date(email.sentAt), {
-                                    addSuffix: true,
-                                    })}
+                           >
+                            <Avatar className="h-10 w-10">
+                                <AvatarImage src={getSenderAvatar(email.senderId)} alt={email.senderName} />
+                                <AvatarFallback>{email.senderName.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 overflow-hidden">
+                                <div className="flex justify-between items-baseline">
+                                    <p className="font-semibold truncate">{email.senderName}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {formatDistanceToNow(new Date(email.sentAt), { addSuffix: true })}
+                                    </p>
                                 </div>
+                                <p className={cn("font-medium truncate", !email.read && "text-foreground")}>{email.subject}</p>
+                                <p className="text-sm text-muted-foreground truncate">{email.body}</p>
                             </div>
-                            <div className="text-sm">{email.subject}</div>
-                            <div
-                                className={cn(
-                                    "text-xs text-muted-foreground line-clamp-2",
-                                    !email.read && "font-bold text-foreground"
-                                )}
-                            >
-                            {email.body}
-                            </div>
+                           </button>
                         </li>
                     ))}
                 </ul>
@@ -310,85 +318,50 @@ export default function InboxPageClient({ initialEmails }: InboxPageClientProps)
           </ScrollArea>
         </div>
         <div className={cn(
-            "md:col-span-2 xl:col-span-3",
-            isMobile && !selectedEmailId ? "hidden" : "block"
+            "md:col-span-2 xl:col-span-3 h-full",
+            isMobile && !selectedEmailId ? "hidden" : "flex flex-col"
           )}>
           {selectedEmail ? (
-            <Card className="m-0 md:m-4 shadow-none md:shadow-lg h-full md:h-[calc(100%-2rem)] flex flex-col">
-              <div className="p-4 border-b flex flex-col gap-4">
-                <div>
-                    <div className="flex items-center gap-2">
-                        {isMobile && (
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" onClick={() => { stop(); setSelectedEmailId(null); setSuggestions([]); }}>
-                                <ArrowLeft />
-                            </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Back to Inbox</TooltipContent>
-                        </Tooltip>
-                        )}
-                        <h3 className="text-xl font-bold line-clamp-1">{selectedEmail.subject}</h3>
-                    </div>
-                    <div className="text-sm text-muted-foreground mt-2">
-                        From: {selectedEmail.senderName} &lt;{selectedEmail.senderEmail}&gt;
-                    </div>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap px-4">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => handlePlayEmail(selectedEmail)} disabled={isGenerating || isSummarizing}>
-                          {isGenerating ? <Loader2 className="animate-spin" /> : (isPlaying && selectedEmail.id === selectedEmailId) ? <StopCircle /> : <PlayCircle />}
+            <>
+              <div className="p-4 border-b flex justify-between items-center gap-4">
+                 <div className="flex items-center gap-3">
+                    {isMobile && (
+                        <Button variant="ghost" size="icon" onClick={() => { stop(); setSelectedEmailId(null); setSuggestions([]); }}>
+                            <ArrowLeft />
                         </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{(isPlaying && selectedEmail.id === selectedEmailId) ? 'Stop Reading' : 'Read Aloud'}</p>
-                      </TooltipContent>
+                    )}
+                    {senderOfSelectedEmail && (
+                        <Avatar className="h-10 w-10">
+                            <AvatarImage src={senderOfSelectedEmail.avatar} alt={senderOfSelectedEmail.name} />
+                            <AvatarFallback>{senderOfSelectedEmail.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                    )}
+                    <div className="flex-1 overflow-hidden">
+                        <h3 className="text-lg font-bold truncate">{senderOfSelectedEmail?.name}</h3>
+                        <p className="text-sm text-muted-foreground">To: {selectedEmail.recipients?.map(r => r.name).join(', ')}</p>
+                    </div>
+                 </div>
+                 <div className="flex items-center gap-2">
+                    <p className="text-sm text-muted-foreground">
+                        {format(new Date(selectedEmail.sentAt), "dd/MM/yyyy, hh:mm a")}
+                    </p>
+                    <Tooltip>
+                      <TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={handleReplyEmail}><CornerUpLeft /></Button></TooltipTrigger>
+                      <TooltipContent><p>Reply</p></TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={handleArchiveEmail}><Archive /></Button></TooltipTrigger>
+                      <TooltipContent><p>Archive</p></TooltipContent>
                     </Tooltip>
                      <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={handleSummarizeEmail} disabled={isSummarizing || isPlaying}>
-                          {isSummarizing ? <Loader2 className="animate-spin" /> : <FileText />}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Summarize</p>
-                      </TooltipContent>
+                      <TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={handleDeleteEmail}><Trash2 /></Button></TooltipTrigger>
+                      <TooltipContent><p>Delete</p></TooltipContent>
                     </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={handleReplyEmail}>
-                          <CornerUpLeft />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Reply</p>
-                      </TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={handleArchiveEmail}>
-                          <Archive />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Archive</p>
-                      </TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={handleDeleteEmail}>
-                          <Trash2 />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Delete</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
+                 </div>
               </div>
               <ScrollArea className="flex-1">
-                <div className="p-4">
+                <div className="p-6">
+                  <h2 className="text-2xl font-bold mb-4">{selectedEmail.subject}</h2>
                   <p className="text-base leading-relaxed whitespace-pre-wrap">{selectedEmail.body}</p>
                 </div>
               </ScrollArea>
@@ -417,7 +390,7 @@ export default function InboxPageClient({ initialEmails }: InboxPageClientProps)
                   )}
                 </div>
               )}
-            </Card>
+            </>
           ) : (
             <div className={cn("flex items-center justify-center h-full text-muted-foreground", isMobile && "hidden")}>
               Select an email to read

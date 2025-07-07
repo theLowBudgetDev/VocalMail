@@ -1,5 +1,5 @@
 
-import { getInboxEmails, getLoggedInUser } from "@/lib/actions";
+import { getInboxEmails, getLoggedInUser, getUsers } from "@/lib/actions";
 import InboxPageClient from "./inbox-page-client";
 import { redirect } from "next/navigation";
 
@@ -8,7 +8,10 @@ export default async function InboxPage() {
     if (!currentUser) {
         redirect('/login?error=Session expired.');
     }
-    const inboxEmails = await getInboxEmails(currentUser.id);
+    const [inboxEmails, users] = await Promise.all([
+        getInboxEmails(currentUser.id),
+        getUsers(),
+    ]);
 
-    return <InboxPageClient initialEmails={inboxEmails} />;
+    return <InboxPageClient initialEmails={inboxEmails} users={users} />;
 }

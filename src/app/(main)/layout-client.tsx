@@ -4,21 +4,24 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
+
 import {
   Archive,
   Contact,
   Inbox,
   Send,
   FilePenLine,
-  Mail,
-  Search,
-  HelpCircle,
+  Trash2,
+  Settings,
+  PanelLeft,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuItem,
@@ -26,16 +29,10 @@ import {
   SidebarProvider,
   SidebarInset,
   SidebarTrigger,
+  SidebarRail,
 } from "@/components/ui/sidebar";
 import { VoiceCommander } from "@/components/voice-commander";
-import { ModeToggle } from "@/components/mode-toggle";
 import { UserNav } from "@/components/user-nav";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { CurrentUserProvider } from "@/hooks/use-current-user";
 import type { User } from "@/lib/data";
 
@@ -44,7 +41,7 @@ const navItems = [
   { href: "/sent", label: "Sent", icon: Send },
   { href: "/archive", label: "Archive", icon: Archive },
   { href: "/contacts", label: "Contacts", icon: Contact },
-  { href: "/search", label: "Search", icon: Search },
+  { href: "/search", label: "Search", icon: Trash2 }, // Icon changed to match screenshot (delete/trash)
 ];
 
 export default function VocalMailLayoutClient({
@@ -55,15 +52,30 @@ export default function VocalMailLayoutClient({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { theme, setTheme } = useTheme();
+  
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark');
+  }
 
   return (
     <CurrentUserProvider initialUser={currentUser}>
-      <SidebarProvider>
-        <Sidebar>
-          <SidebarHeader>
-            <div className="flex items-center gap-2 p-2">
-              <Mail className="w-8 h-8 text-primary" />
-              <h1 className="text-2xl font-bold group-data-[collapsible=icon]:hidden">VocalMail</h1>
+      <SidebarProvider defaultOpen={true}>
+        <Sidebar collapsible="icon">
+           <SidebarRail />
+          <SidebarHeader className="p-0">
+             <div className="flex items-center justify-center h-16 w-full">
+                <SidebarTrigger className="group-data-[collapsible=icon]:hidden" />
+                 <div className="w-12 h-12 flex items-center justify-center group-data-[collapsible=icon]:w-full">
+                   <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      className="h-7 w-7 text-primary"
+                      fill="currentColor"
+                   >
+                     <path d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6zm-2 0l-8 5-8-5h16zm0 12H4V8l8 5 8-5v10z"/>
+                   </svg>
+                 </div>
             </div>
           </SidebarHeader>
           <SidebarContent>
@@ -86,37 +98,32 @@ export default function VocalMailLayoutClient({
                   >
                     <Link href={item.href}>
                       <item.icon />
-                      <span>{item.label}</span>
+                      <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
           </SidebarContent>
+          <SidebarFooter className="p-2 mt-auto">
+             <SidebarMenu>
+                <SidebarMenuItem>
+                   <SidebarMenuButton
+                        onClick={toggleTheme}
+                        size="lg"
+                        tooltip="Toggle Theme"
+                      >
+                        <Settings />
+                        <span className="group-data-[collapsible=icon]:hidden">Toggle Theme</span>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                 <SidebarMenuItem>
+                   <UserNav />
+                </SidebarMenuItem>
+             </SidebarMenu>
+          </SidebarFooter>
         </Sidebar>
         <SidebarInset>
-          <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
-              <SidebarTrigger className="md:hidden" />
-              <h1 className="text-xl font-semibold md:text-2xl capitalize">{pathname.split(/[\/-]/).pop()?.replace(/\[id\]/,'') || 'Inbox'}</h1>
-              <div className="ml-auto flex items-center gap-2">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" asChild>
-                          <Link href="/help">
-                            <HelpCircle />
-                          </Link>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Help</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <ModeToggle />
-                  <UserNav />
-              </div>
-          </header>
           <div className="flex-1 overflow-auto bg-background">
               {children}
           </div>

@@ -31,8 +31,8 @@ export function VoiceCommander() {
   const isComposePage = pathname === '/compose';
 
   const handleCommand = React.useCallback((result: RecognizeCommandOutput) => {
-    if (!result) {
-      play("Sorry, I didn't understand that. Please try again.");
+    if (!result || !result.command) {
+      play("Sorry, I had trouble with that request. Please try again.");
       return;
     }
 
@@ -169,7 +169,7 @@ export function VoiceCommander() {
               disabled={isProcessing}
               className={cn(
                 "rounded-full w-16 h-16 shadow-lg flex items-center justify-center transition-all duration-300",
-                isListening ? "bg-destructive hover:bg-destructive/90 scale-110 animate-pulse" : "bg-primary hover:bg-primary/90",
+                isListening ? "bg-destructive hover:bg-destructive/90 scale-110" : "bg-accent hover:bg-accent/90",
                  isProcessing && "cursor-not-allowed bg-muted"
               )}
               aria-label={tooltipText}
@@ -182,7 +182,7 @@ export function VoiceCommander() {
               {isProcessing ? (
                 <Loader2 className="h-7 w-7 animate-spin" />
               ) : (
-                <Mic className="h-7 w-7" />
+                <Mic className="h-7 w-7 text-accent-foreground" />
               )}
             </Button>
           </TooltipTrigger>
