@@ -1,5 +1,5 @@
 
-import { getLoggedInUser } from "@/lib/actions";
+import { getLoggedInUser, getUsers } from "@/lib/actions";
 import { redirect } from "next/navigation";
 import VocalMailLayoutClient from "./layout-client";
 
@@ -8,14 +8,17 @@ export default async function VocalMailLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const currentUser = await getLoggedInUser();
+  const [currentUser, allUsers] = await Promise.all([
+    getLoggedInUser(),
+    getUsers()
+  ]);
 
   if (!currentUser) {
     redirect("/login");
   }
 
   return (
-    <VocalMailLayoutClient currentUser={currentUser}>
+    <VocalMailLayoutClient currentUser={currentUser} allUsers={allUsers}>
       {children}
     </VocalMailLayoutClient>
   );

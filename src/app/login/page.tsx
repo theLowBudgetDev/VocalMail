@@ -3,8 +3,14 @@ import { getUsers, getLoggedInUser, login } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { redirect } from "next/navigation";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 export default async function LoginPage({
   searchParams,
@@ -16,13 +22,15 @@ export default async function LoginPage({
     redirect('/inbox');
   }
 
+  const allUsers = await getUsers();
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
         <form action={login}>
           <CardHeader>
             <CardTitle>Welcome to VocalMail</CardTitle>
-            <CardDescription>Enter your credentials to sign in.</CardDescription>
+            <CardDescription>Select a user to start a session.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
              {searchParams.error && (
@@ -31,12 +39,19 @@ export default async function LoginPage({
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" name="email" type="email" placeholder="user@example.com" defaultValue="charlie.davis@example.com" required />
-            </div>
-             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input id="password" name="password" type="password" defaultValue="password" required />
+              <Label htmlFor="user-select">Select User</Label>
+              <Select name="userId" defaultValue={allUsers[0].id.toString()}>
+                <SelectTrigger id="user-select">
+                  <SelectValue placeholder="Select a user account" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allUsers.map((user) => (
+                    <SelectItem key={user.id} value={user.id.toString()}>
+                      {user.name} ({user.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
           <CardFooter>

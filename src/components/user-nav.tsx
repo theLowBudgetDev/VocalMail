@@ -10,13 +10,24 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuPortal,
+  DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu"
 import { useCurrentUser } from "@/hooks/use-current-user"
-import { logout } from "@/lib/actions"
-import { User, Loader2, LogOut } from "lucide-react"
+import { login, logout } from "@/lib/actions"
+import { User, Loader2, LogOut, Users, Check } from "lucide-react"
+import type { User as UserType } from "@/lib/data";
 
-export function UserNav() {
+export function UserNav({ allUsers }: { allUsers: UserType[] }) {
   const { currentUser, isLoading } = useCurrentUser();
+
+  const handleSwitchUser = (userId: number) => {
+    const formData = new FormData();
+    formData.append('userId', userId.toString());
+    login(formData);
+  };
 
   if (isLoading) {
     return <Loader2 className="h-6 w-6 animate-spin" />
@@ -54,6 +65,24 @@ export function UserNav() {
             </p>
           </div>
         </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <Users className="mr-2 h-4 w-4" />
+            <span>Switch account</span>
+          </DropdownMenuSubTrigger>
+          <DropdownMenuPortal>
+            <DropdownMenuSubContent>
+              {allUsers.map((user) => (
+                <DropdownMenuItem key={user.id} onClick={() => handleSwitchUser(user.id)}>
+                   {currentUser.id === user.id && <Check className="mr-2 h-4 w-4" />}
+                   {currentUser.id !== user.id && <span className="w-6 mr-2"></span>}
+                  <span>{user.name}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuPortal>
+        </DropdownMenuSub>
         <DropdownMenuSeparator />
         <form action={logout}>
             <DropdownMenuItem asChild>

@@ -11,21 +11,17 @@ VocalMail is a final year project that re-imagines the email experience for visu
 - **Full Contact Management:** Add, search, delete, and initiate emails to your contacts, all through voice commands.
 - **Global Email Search:** Find any email, no matter which folder it's in, by searching for content in its subject or body using a voice command.
 - **Text-to-Speech & Caching:** All on-screen text and email content can be read aloud. Responses are cached to provide a snappy user experience and reduce API usage.
-- **Full User Authentication:** Secure login and registration system with persistent user sessions.
+- **Mock User Authentication:** A simple, mock-user authentication system for easy demonstration and testing.
 
 ## User Authentication
 
-VocalMail uses a simple, mock-user authentication system. On the login page, you can select which of the five pre-seeded users you would like to log in as. This allows for easy testing of a multi-user environment without the need for registration or password management. Your session is remembered in your browser's local storage.
-
-## User Authentication
-
-VocalMail uses a simple, mock-user authentication system. On the login page, you can select which of the five pre-seeded users you would like to log in as. This allows for easy testing of a multi-user environment without the need for registration or password management. Your session is remembered in your browser's local storage.
+VocalMail uses a simple, mock-user authentication system. On the login page, you can select which of the five pre-seeded users you would like to log in as. This allows for easy testing of a multi-user environment without the need for registration or password management. Your session is remembered in a browser cookie, and you can switch between users from the profile icon in the top-right corner.
 
 ## Technology Stack
 
 - **Frontend:** Next.js (App Router), React, TypeScript
 - **Styling:** Tailwind CSS, ShadCN UI
-- **Database:** SQLite with `better-sqlite3`
+- **Data:** In-memory mock data (no database required).
 - **Generative AI:** Google AI Platform via Genkit
 - **UI/UX:** High-contrast, minimalist design focused on accessibility.
 
@@ -48,32 +44,12 @@ VocalMail uses a simple, mock-user authentication system. On the login page, you
     ```bash
     npm install
     ```
-<<<<<<< HEAD
-<<<<<<< HEAD
-    After installation, a `postinstall` script will automatically run to initialize the local SQLite database (`vocalmail.db`) if it doesn't exist. On the first run, it will also be populated with mock data. Subsequent runs of `npm install` or `npm run dev` will not erase your data.
-=======
-    The first time you run this, it will also automatically create and seed a local SQLite database (`vocalmail.db`). On subsequent runs, it will safely do nothing, preserving your existing data.
->>>>>>> 3baf87b (ensure the readme is updated withthe system's current state.)
-=======
-    The first time you run this, it will also automatically create and seed a local SQLite database (`vocalmail.db`). On subsequent runs, it will safely do nothing, preserving your existing data.
->>>>>>> 3baf87b (ensure the readme is updated withthe system's current state.)
 
 3.  **Set up environment variables:**
     Create a file named `.env` in the root of the project and add your Google AI API key:
     ```
     GOOGLE_API_KEY=your_google_ai_api_key_here
     ```
-
-4.  **(Optional) Manually Reset the Database:**
-    If you ever want to reset the database to its initial state, simply delete the `vocalmail.db` file in the root of the project and restart the development server (`npm run dev`). A new database file will be created and seeded with fresh data.
-
-### Logging In
-
-The application is seeded with several mock user accounts. You can use any of their emails to log in.
-- **Email:** `charlie.davis@example.com`, `alice.williams@example.com`, etc.
-- **Password (for all users):** `password`
-
-You can also register a new account.
 
 ### Running the Application
 
@@ -96,4 +72,4 @@ Once the application is running, it will open to `http://localhost:9002`. You wi
 
 ## How It Works
 
-The application uses the browser's `MediaRecorder` API to capture voice commands. This audio is sent to a Genkit AI flow, which uses Google's AI models to first transcribe the audio and then understand the user's intent. Based on the recognized command, the application performs an action, such as navigating to a new page, reading an email aloud, or filtering a list. All text-to-speech is handled by another AI flow and cached on the client to ensure a smooth and efficient experience. All user and email data is stored in a local SQLite database for persistence.
+The application uses the browser's `MediaRecorder` API to capture voice commands. This audio is sent to a Genkit AI flow, which uses Google's AI models to first transcribe the audio and then understand the user's intent. Based on the recognized command, the application performs an action, such as navigating to a new page, reading an email aloud, or filtering a list. All text-to-speech is handled by another AI flow and cached on the client to ensure a smooth and efficient experience. All user and email data is served from a mock, in-memory data store for demonstration purposes.

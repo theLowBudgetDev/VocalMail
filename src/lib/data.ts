@@ -3,7 +3,6 @@ export type User = {
     name: string;
     email: string;
     avatar: string;
-    password?: string;
 };
 
 export type Contact = {
@@ -27,3 +26,12 @@ export type Email = {
      // Property below is for sender view
     recipients?: { name: string; email: string }[];
 };
+
+export const emailCategories = [
+    { id: 'urgent', name: 'Urgent', description: 'Critical, time-sensitive messages.' },
+    { id: 'important', name: 'Important', description: 'High-priority messages.' },
+    { id: 'promotions', name: 'Promotions', description: 'Marketing and sales offers.' },
+    { id: 'social', name: 'Social', description: 'Notifications from social networks.' },
+    { id: 'updates', name: 'Updates', description: 'Announcements and newsletters.' },
+    { id: 'personal', name: 'Personal', description: 'Messages from friends and family.' }
+];

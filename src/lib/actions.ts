@@ -2,27 +2,29 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { db } from './db';
 import type { User, Email, Contact } from './data';
+import { users, emails as emailTemplates, contacts as allContacts } from './mock-data';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
-// --- AUTH ACTIONS ---
-
 const SESSION_COOKIE_NAME = 'vocalmail_session';
 
-export async function login(formData: FormData) {
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
+// In-memory store to simulate database state
+let mockEmails: Email[] = JSON.parse(JSON.stringify(emailTemplates));
+let mockContacts: { ownerId: number; contactUserId: number }[] = JSON.parse(JSON.stringify(allContacts));
 
-    if (!email || !password) {
-        return redirect('/login?error=Email and password are required.');
+// --- AUTH ACTIONS ---
+
+export async function login(formData: FormData) {
+    const userId = formData.get('userId') as string;
+
+    if (!userId) {
+        return redirect('/login?error=Please select a user.');
     }
 
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as User | undefined;
-
-    if (!user || user.password !== password) {
-         return redirect('/login?error=Invalid email or password.');
+    const user = users.find(u => u.id === parseInt(userId));
+    if (!user) {
+        return redirect('/login?error=Invalid user selected.');
     }
 
     cookies().set(SESSION_COOKIE_NAME, String(user.id), {
@@ -43,187 +45,102 @@ export async function logout() {
 export async function getLoggedInUser(): Promise<User | null> {
     const userId = cookies().get(SESSION_COOKIE_NAME)?.value;
     if (!userId) {
-        return null;
+        // Default to the first user if not logged in for demo purposes
+        const defaultUser = users[0];
+        cookies().set(SESSION_COOKIE_NAME, String(defaultUser.id), { httpOnly: true, path: '/' });
+        return defaultUser;
     }
 
-    try {
-        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as User | null;
-        return user;
-    } catch (error) {
-        console.error("Database error fetching logged in user:", error);
-        return null;
-    }
+    const user = users.find(u => u.id === parseInt(userId, 10));
+    return user || null;
 }
 
-
 // --- DATA ACTIONS ---
+
 export async function getUsers(): Promise<User[]> {
-    return db.prepare('SELECT * FROM users').all() as User[];
+    return Promise.resolve(users);
 }
 
 export async function getInboxEmails(userId: number): Promise<Email[]> {
-    const query = `
-        SELECT
-            e.id,
-            e.subject,
-            e.body,
-            e.sentAt,
-            u.id as senderId,
-            u.name as senderName,
-            u.email as senderEmail,
-            er.read,
-            er.status
-        FROM emails e
-        JOIN email_recipients er ON e.id = er.emailId
-        JOIN users u ON e.senderId = u.id
-        WHERE er.recipientId = ? AND er.status = 'inbox'
-        ORDER BY e.sentAt DESC
-    `;
-    const emails = db.prepare(query).all(userId) as any[];
-    return emails.map(e => ({...e, read: !!e.read}));
+    const userEmails = mockEmails.filter(email => 
+        email.recipients?.some(r => r.email === users.find(u => u.id === userId)?.email) && email.status === 'inbox'
+    );
+    userEmails.sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime());
+    return Promise.resolve(userEmails);
 }
 
 export async function getArchivedEmails(userId: number): Promise<Email[]> {
-     const query = `
-        SELECT
-            e.id,
-            e.subject,
-            e.body,
-            e.sentAt,
-            u.id as senderId,
-            u.name as senderName,
-            u.email as senderEmail
-        FROM emails e
-        JOIN email_recipients er ON e.id = er.emailId
-        JOIN users u ON e.senderId = u.id
-        WHERE er.recipientId = ? AND er.status = 'archive'
-        ORDER BY e.sentAt DESC
-    `;
-    return db.prepare(query).all(userId) as Email[];
+    const userEmails = mockEmails.filter(email => 
+        email.recipients?.some(r => r.email === users.find(u => u.id === userId)?.email) && email.status === 'archive'
+    );
+    userEmails.sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime());
+    return Promise.resolve(userEmails);
 }
 
 export async function getSentEmails(userId: number): Promise<Email[]> {
-    const query = `
-        SELECT
-            e.id,
-            e.subject,
-            e.body,
-            e.sentAt,
-            u.id as senderId,
-            u.name as senderName,
-            u.email as senderEmail
-        FROM emails e
-        JOIN users u ON e.senderId = u.id
-        WHERE e.senderId = ? AND e.senderStatus = 'sent'
-        ORDER BY e.sentAt DESC
-    `;
-    const emails = db.prepare(query).all(userId) as Email[];
-
-    // For each sent email, get its recipients
-    const getRecipientsStmt = db.prepare(`
-        SELECT u.name, u.email 
-        FROM email_recipients er
-        JOIN users u ON er.recipientId = u.id
-        WHERE er.emailId = ?
-    `);
-
-    return emails.map(email => {
-        const recipients = getRecipientsStmt.all(email.id) as { name: string; email: string }[];
-        return { ...email, recipients };
-    });
+    const userEmails = mockEmails.filter(email => email.senderId === userId && email.status === 'sent');
+    userEmails.sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime());
+    return Promise.resolve(userEmails);
 }
 
 export async function searchEmails(userId: number, searchTerm: string): Promise<Email[]> {
-    const searchQuery = `%${searchTerm}%`;
+    const user = users.find(u => u.id === userId);
+    if (!user) return [];
     
-    // Search own sent items
-    const sentQuery = `
-        SELECT e.*, s.name as senderName, s.email as senderEmail, 'sent' as status
-        FROM emails e
-        JOIN users s ON e.senderId = s.id
-        WHERE e.senderId = ?
-        AND e.senderStatus = 'sent'
-        AND (e.subject LIKE ? OR e.body LIKE ?)
-    `;
-    const sentResults = db.prepare(sentQuery).all(userId, searchQuery, searchQuery) as any[];
+    const lowercasedTerm = searchTerm.toLowerCase();
 
-    // Search received items
-    const receivedQuery = `
-        SELECT e.*, s.name as senderName, s.email as senderEmail, er.status as status
-        FROM emails e
-        JOIN users s ON e.senderId = s.id
-        JOIN email_recipients er ON er.emailId = e.id
-        WHERE er.recipientId = ?
-        AND er.status IN ('inbox', 'archive')
-        AND (e.subject LIKE ? OR e.body LIKE ? OR s.name LIKE ?)
-    `;
-    const receivedResults = db.prepare(receivedQuery).all(userId, searchQuery, searchQuery, searchQuery) as any[];
-    
-    const combined = [...sentResults, ...receivedResults].map(e => ({
-        id: e.id,
-        subject: e.subject,
-        body: e.body,
-        sentAt: e.sentAt,
-        status: e.status, // Use the status from the query
-        senderId: e.senderId,
-        senderName: e.senderName,
-        senderEmail: e.senderEmail,
-    }));
-    
-    const uniqueEmails = Array.from(new Map(combined.map(e => [e.id + e.status, e])).values());
-    uniqueEmails.sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime());
+    const results = mockEmails.filter(email => {
+        const isSender = email.senderId === userId;
+        const isRecipient = email.recipients?.some(r => r.email === user.email);
+        
+        if (!isSender && !isRecipient) {
+            return false;
+        }
+        
+        if (email.status === 'deleted') return false;
 
-    return uniqueEmails as Email[];
+        const fromMatch = `from:${email.senderName.toLowerCase()}`.includes(lowercasedTerm);
+        const subjectMatch = email.subject.toLowerCase().includes(lowercasedTerm);
+        const bodyMatch = email.body.toLowerCase().includes(lowercasedTerm);
+
+        return fromMatch || subjectMatch || bodyMatch;
+    });
+
+    results.sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime());
+    return Promise.resolve(results);
 }
 
 
 export async function getContacts(userId: number): Promise<Contact[]> {
-    const query = `
-        SELECT u.id, u.name, u.email, u.avatar
-        FROM contacts c
-        JOIN users u ON c.contactUserId = u.id
-        WHERE c.ownerId = ?
-        ORDER BY u.name
-    `;
-    return db.prepare(query).all(userId) as Contact[];
+    const contactLinks = mockContacts.filter(c => c.ownerId === userId);
+    const contactIds = contactLinks.map(c => c.contactUserId);
+    const contacts = users.filter(u => contactIds.includes(u.id));
+    contacts.sort((a, b) => a.name.localeCompare(b.name));
+    return Promise.resolve(contacts);
 }
 
 export async function markEmailAsRead(emailId: number, userId: number) {
-    const stmt = db.prepare('UPDATE email_recipients SET read = 1 WHERE emailId = ? AND recipientId = ?');
-    stmt.run(emailId, userId);
+    const emailIndex = mockEmails.findIndex(e => e.id === emailId);
+    if (emailIndex > -1) {
+        mockEmails[emailIndex].read = true;
+    }
     revalidatePath('/inbox');
 }
 
 export async function archiveEmail(emailId: number, userId: number) {
-    const stmt = db.prepare("UPDATE email_recipients SET status = 'archive' WHERE emailId = ? AND recipientId = ?");
-    stmt.run(emailId, userId);
+    const emailIndex = mockEmails.findIndex(e => e.id === emailId);
+    if (emailIndex > -1) {
+        mockEmails[emailIndex].status = 'archive';
+    }
     revalidatePath('/inbox');
     revalidatePath('/archive');
 }
 
 export async function deleteUserEmail(emailId: number, userId: number, type: 'inbox' | 'archive' | 'sent' | 'search', originalStatus?: string) {
-    // If it's a sent email, we soft delete from the sender's view.
-    if (type === 'sent') {
-        const stmt = db.prepare("UPDATE emails SET senderStatus = 'deleted' WHERE id = ? AND senderId = ?");
-        stmt.run(emailId, userId);
-    } 
-    // For received emails (inbox, archive), we soft delete from the recipient's view.
-    else if (type === 'inbox' || type === 'archive') {
-        const stmt = db.prepare("UPDATE email_recipients SET status = 'deleted' WHERE emailId = ? AND recipientId = ?");
-        stmt.run(emailId, userId);
-    }
-    // For search, we need to know if the user is the sender or receiver
-    else if (type === 'search' && originalStatus) {
-         if (originalStatus === 'sent') {
-            const stmt = db.prepare("UPDATE emails SET senderStatus = 'deleted' WHERE id = ? AND senderId = ?");
-            stmt.run(emailId, userId);
-         } else {
-            const stmt = db.prepare("UPDATE email_recipients SET status = 'deleted' WHERE emailId = ? AND recipientId = ?");
-            stmt.run(emailId, userId);
-         }
-    }
-    
-    // Revalidate all potentially affected paths
+     const emailIndex = mockEmails.findIndex(e => e.id === emailId);
+     if (emailIndex > -1) {
+         mockEmails[emailIndex].status = 'deleted';
+     }
     revalidatePath('/inbox');
     revalidatePath('/archive');
     revalidatePath('/sent');
@@ -232,47 +149,52 @@ export async function deleteUserEmail(emailId: number, userId: number, type: 'in
 
 
 export async function addContact(ownerId: number, contactEmail: string) {
-    const contactUser = db.prepare('SELECT id FROM users WHERE email = ?').get(contactEmail) as { id: number } | undefined;
+    const contactUser = users.find(u => u.email === contactEmail);
     if (!contactUser) {
         throw new Error("User with that email does not exist.");
     }
-    const contactUserId = contactUser.id;
-    if (ownerId === contactUserId) {
+    if (ownerId === contactUser.id) {
          throw new Error("You cannot add yourself as a contact.");
     }
-    try {
-        db.prepare('INSERT INTO contacts (ownerId, contactUserId) VALUES (?, ?)').run(ownerId, contactUserId);
-    } catch (e: any) {
-        if (e.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-            throw new Error("This person is already in your contacts.");
-        }
-        throw e;
+    const exists = mockContacts.some(c => c.ownerId === ownerId && c.contactUserId === contactUser.id);
+    if (exists) {
+        throw new Error("This person is already in your contacts.");
     }
+    mockContacts.push({ ownerId, contactUserId: contactUser.id });
     revalidatePath('/contacts');
 }
 
 export async function deleteContact(ownerId: number, contactId: number) {
-    const stmt = db.prepare('DELETE FROM contacts WHERE ownerId = ? AND contactUserId = ?');
-    stmt.run(ownerId, contactId);
+    mockContacts = mockContacts.filter(c => !(c.ownerId === ownerId && c.contactUserId === contactId));
     revalidatePath('/contacts');
 }
 
 export async function sendEmail(senderId: number, to: string, subject: string, body: string) {
-    const recipient = db.prepare('SELECT id FROM users WHERE email = ?').get(to) as User | undefined;
-    if (!recipient) {
+    const sender = users.find(u => u.id === senderId);
+    const recipient = users.find(u => u.email === to);
+    
+    if (!sender || !recipient) {
         throw new Error(`Recipient email "${to}" not found.`);
     }
 
-    const tx = db.transaction(() => {
-        const emailInsert = db.prepare('INSERT INTO emails (senderId, subject, body, sentAt) VALUES (?, ?, ?, ?)')
-            .run(senderId, subject, body, new Date().toISOString());
-        const emailId = emailInsert.lastInsertRowid;
+    const newEmail: Email = {
+        id: Math.max(0, ...mockEmails.map(e => e.id)) + 1,
+        senderId: sender.id,
+        senderName: sender.name,
+        senderEmail: sender.email,
+        recipients: [{ name: recipient.name, email: recipient.email }],
+        subject,
+        body,
+        sentAt: new Date().toISOString(),
+        status: 'inbox',
+        read: false,
+    };
+    
+    // The sent email also needs a 'sent' status for the sender's outbox
+    const sentVersion = {...newEmail, status: 'sent' as const};
 
-        db.prepare('INSERT INTO email_recipients (emailId, recipientId) VALUES (?, ?)')
-            .run(emailId, recipient.id);
-    });
-
-    tx();
+    mockEmails.push(sentVersion);
+    
     revalidatePath('/sent');
     revalidatePath('/inbox');
 }
