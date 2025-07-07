@@ -3,53 +3,18 @@
 import { revalidatePath } from 'next/cache';
 import type { User, Email, Contact } from './data';
 import { users, emails as emailTemplates, contacts as allContacts } from './mock-data';
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
 import { cache } from 'react';
-
-const SESSION_COOKIE_NAME = 'vocalmail_session';
 
 // In-memory store to simulate database state
 let mockEmails: Email[] = JSON.parse(JSON.stringify(emailTemplates));
 let mockContacts: { ownerId: number; contactUserId: number }[] = JSON.parse(JSON.stringify(allContacts));
 
-// --- AUTH ACTIONS ---
-
-export async function login(formData: FormData) {
-    const userId = formData.get('userId') as string;
-
-    if (!userId) {
-        return redirect('/login?error=Please select a user.');
-    }
-
-    const user = users.find(u => u.id === parseInt(userId));
-    if (!user) {
-        return redirect('/login?error=Invalid user selected.');
-    }
-
-    cookies().set(SESSION_COOKIE_NAME, String(user.id), {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 60 * 60 * 24 * 7, // One week
-        path: '/',
-    });
-    
-    redirect('/inbox');
-}
-
-export async function logout() {
-    cookies().delete(SESSION_COOKIE_NAME);
-    redirect('/login');
-}
+// --- AUTH ACTIONS (REMOVED) ---
+// The application now operates in a single-user mode.
 
 export const getLoggedInUser = cache(async (): Promise<User | null> => {
-    const userId = cookies().get(SESSION_COOKIE_NAME)?.value;
-    if (!userId) {
-        return null;
-    }
-
-    const user = users.find(u => u.id === parseInt(userId, 10));
-    return user || null;
+    // Always return the first user for a single-user demo experience.
+    return Promise.resolve(users[0]);
 });
 
 // --- DATA ACTIONS ---

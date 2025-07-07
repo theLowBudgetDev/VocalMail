@@ -49,11 +49,9 @@ const navItems = [
 
 export default function VocalMailLayoutClient({
   currentUser,
-  allUsers,
   children,
 }: {
   currentUser: User;
-  allUsers: User[];
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -116,7 +114,7 @@ export default function VocalMailLayoutClient({
                     </Tooltip>
                   </TooltipProvider>
                   <ModeToggle />
-                  <UserNav allUsers={allUsers} />
+                  <UserNav />
               </div>
           </header>
           <div className="flex-1 overflow-auto bg-background">

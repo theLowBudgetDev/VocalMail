@@ -2,24 +2,8 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const SESSION_COOKIE_NAME = 'vocalmail_session';
-
+// This middleware is now a pass-through and does not perform any authentication checks.
 export function middleware(request: NextRequest) {
-  const sessionToken = request.cookies.get(SESSION_COOKIE_NAME);
-  const { pathname } = request.nextUrl;
-
-  const isPublicPage = pathname === '/login' || pathname === '/register';
-
-  if (!sessionToken && !isPublicPage) {
-    const url = new URL('/login', request.url);
-    url.searchParams.set('error', 'Please log in to continue.');
-    return NextResponse.redirect(url);
-  }
-
-  if (sessionToken && isPublicPage) {
-    return NextResponse.redirect(new URL('/inbox', request.url));
-  }
-
   return NextResponse.next();
 }
 

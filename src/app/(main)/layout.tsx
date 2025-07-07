@@ -1,24 +1,22 @@
 
-import { getLoggedInUser, getUsers } from "@/lib/actions";
-import { redirect } from "next/navigation";
+import { getLoggedInUser } from "@/lib/actions";
 import VocalMailLayoutClient from "./layout-client";
+import { redirect } from "next/navigation";
 
 export default async function VocalMailLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [currentUser, allUsers] = await Promise.all([
-    getLoggedInUser(),
-    getUsers()
-  ]);
+  const currentUser = await getLoggedInUser();
 
+  // This should theoretically not happen anymore, but as a safeguard.
   if (!currentUser) {
-    redirect("/login");
+    redirect("/");
   }
 
   return (
-    <VocalMailLayoutClient currentUser={currentUser} allUsers={allUsers}>
+    <VocalMailLayoutClient currentUser={currentUser}>
       {children}
     </VocalMailLayoutClient>
   );
