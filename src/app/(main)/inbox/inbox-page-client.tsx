@@ -288,7 +288,7 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
                           key={email.id}
                           className={cn(
                               "w-full text-left p-3 flex gap-3 items-start border-b",
-                              selectedEmailId === email.id ? "bg-muted" : "hover:bg-muted/50"
+                              !email.read && "bg-muted/30"
                           )}
                           onClick={() => handleSelectEmail(email)}
                          >
@@ -355,7 +355,7 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
               </div>
               <ScrollArea className="flex-1">
                 <div className="p-6">
-                   <div className="flex items-center justify-between gap-4 mb-2">
+                   <div className="flex items-start justify-between gap-4">
                         <div className="flex items-start gap-4">
                              {senderOfSelectedEmail && (
                                 <Avatar className="h-10 w-10">
@@ -363,21 +363,21 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
                                     <AvatarFallback>{senderOfSelectedEmail.name.charAt(0)}</AvatarFallback>
                                 </Avatar>
                             )}
-                            <div className="grid gap-0.5">
+                            <div className="grid gap-1">
                                 <p className="font-semibold">{senderOfSelectedEmail?.name}</p>
+                                <p className="text-sm font-medium">{selectedEmail.subject}</p>
                                 <p className="text-xs text-muted-foreground">
-                                  To me {selectedEmail.recipients && selectedEmail.recipients.length > 1 ? `and ${selectedEmail.recipients.length - 1} others` : ''}
+                                  To: {currentUser?.name} &lt;{currentUser?.email}&gt;
                                 </p>
                             </div>
                         </div>
                         <div className="text-right">
                           <p className="text-xs text-muted-foreground whitespace-nowrap">
-                              {format(new Date(selectedEmail.sentAt), "E, d MMM yyyy, hh:mm a")}
+                              {format(new Date(selectedEmail.sentAt), "P, p")}
                           </p>
                         </div>
                    </div>
-                  <h2 className="text-xl font-bold mt-4 mb-2">{selectedEmail.subject}</h2>
-                  <Separator className="my-4 w-full" />
+                  <Separator className="my-4" />
                   <div className="text-sm leading-relaxed whitespace-pre-wrap">{selectedEmail.body}</div>
                 </div>
               </ScrollArea>
