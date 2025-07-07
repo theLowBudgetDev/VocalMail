@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { formatDistanceToNow } from "date-fns";
 import { format } from "date-fns";
 
-import { Archive, Trash2, Loader2, CornerUpLeft, ArrowLeft } from "lucide-react";
+import { Archive, Trash2, Loader2, CornerUpLeft, ArrowLeft, Reply, ReplyAll, Forward } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -284,7 +284,7 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
           )}>
           <ScrollArea className="flex-1">
              {inboxEmails.length > 0 ? (
-                <ul className="p-2 space-y-2">
+                <ul className="p-2 space-y-1">
                     {inboxEmails.map((email, index) => (
                         <li key={email.id}>
                            <button
@@ -295,7 +295,7 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
                             onClick={() => handleSelectEmail(email)}
                            >
                             <Avatar className="h-10 w-10">
-                                <AvatarImage src={getSenderAvatar(email.senderId)} alt={email.senderName} />
+                                <AvatarImage src={getSenderAvatar(email.senderId)} alt={email.senderName} data-ai-hint="avatar person" />
                                 <AvatarFallback>{email.senderName.charAt(0)}</AvatarFallback>
                             </Avatar>
                             <div className="flex-1 overflow-hidden">
@@ -318,37 +318,32 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
           </ScrollArea>
         </div>
         <div className={cn(
-            "md:col-span-2 xl:col-span-3 h-full",
+            "md:col-span-2 xl:col-span-3 h-full bg-background",
             isMobile && !selectedEmailId ? "hidden" : "flex flex-col"
           )}>
           {selectedEmail ? (
             <>
-              <div className="p-4 border-b flex justify-between items-center gap-4">
-                 <div className="flex items-center gap-3">
+              <div className="p-2 border-b flex justify-between items-center gap-4">
+                 <div className="flex items-center gap-2">
                     {isMobile && (
                         <Button variant="ghost" size="icon" onClick={() => { stop(); setSelectedEmailId(null); setSuggestions([]); }}>
                             <ArrowLeft />
                         </Button>
                     )}
-                    {senderOfSelectedEmail && (
-                        <Avatar className="h-10 w-10">
-                            <AvatarImage src={senderOfSelectedEmail.avatar} alt={senderOfSelectedEmail.name} />
-                            <AvatarFallback>{senderOfSelectedEmail.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                    )}
-                    <div className="flex-1 overflow-hidden">
-                        <h3 className="text-lg font-bold truncate">{senderOfSelectedEmail?.name}</h3>
-                        <p className="text-sm text-muted-foreground">To: {selectedEmail.recipients?.map(r => r.name).join(', ')}</p>
-                    </div>
-                 </div>
-                 <div className="flex items-center gap-2">
-                    <p className="text-sm text-muted-foreground">
-                        {format(new Date(selectedEmail.sentAt), "dd/MM/yyyy, hh:mm a")}
-                    </p>
                     <Tooltip>
-                      <TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={handleReplyEmail}><CornerUpLeft /></Button></TooltipTrigger>
+                      <TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={handleReplyEmail}><Reply className="h-5 w-5"/></Button></TooltipTrigger>
                       <TooltipContent><p>Reply</p></TooltipContent>
                     </Tooltip>
+                     <Tooltip>
+                      <TooltipTrigger asChild><Button variant="ghost" size="icon"><ReplyAll className="h-5 w-5"/></Button></TooltipTrigger>
+                      <TooltipContent><p>Reply All</p></TooltipContent>
+                    </Tooltip>
+                     <Tooltip>
+                      <TooltipTrigger asChild><Button variant="ghost" size="icon"><Forward className="h-5 w-5"/></Button></TooltipTrigger>
+                      <TooltipContent><p>Forward</p></TooltipContent>
+                    </Tooltip>
+                 </div>
+                 <div className="flex items-center gap-2">
                     <Tooltip>
                       <TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={handleArchiveEmail}><Archive /></Button></TooltipTrigger>
                       <TooltipContent><p>Archive</p></TooltipContent>
@@ -361,6 +356,23 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
               </div>
               <ScrollArea className="flex-1">
                 <div className="p-6">
+                   <div className="flex items-start justify-between gap-4 mb-6">
+                        <div className="flex items-center gap-4">
+                             {senderOfSelectedEmail && (
+                                <Avatar className="h-10 w-10">
+                                    <AvatarImage src={senderOfSelectedEmail.avatar} alt={senderOfSelectedEmail.name} data-ai-hint="avatar person" />
+                                    <AvatarFallback>{senderOfSelectedEmail.name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                            )}
+                            <div className="flex-1 overflow-hidden">
+                                <h3 className="font-bold truncate">{senderOfSelectedEmail?.name}</h3>
+                                <p className="text-sm text-muted-foreground">To: {selectedEmail.recipients?.map(r => r.name).join(', ')}</p>
+                            </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground whitespace-nowrap">
+                            {format(new Date(selectedEmail.sentAt), "dd/MM/yyyy, hh:mm a")}
+                        </p>
+                   </div>
                   <h2 className="text-2xl font-bold mb-4">{selectedEmail.subject}</h2>
                   <p className="text-base leading-relaxed whitespace-pre-wrap">{selectedEmail.body}</p>
                 </div>
