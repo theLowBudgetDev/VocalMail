@@ -40,7 +40,7 @@ const navItems = [
   { href: "/inbox", label: "Inbox", icon: Inbox },
   { href: "/sent", label: "Sent", icon: Send },
   { href: "/inbox", label: "Drafts", icon: FileText },
-  { href: "/archive", label: "Trash", icon: Trash2 },
+  { href: "/archive", label: "Archive", icon: Archive },
   { href: "/contacts", label: "Contacts", icon: Contact },
   { href: "/search", label: "Search", icon: Search },
 ];
@@ -91,8 +91,8 @@ export default function VocalMailLayoutClient({
                 <SidebarMenuItem key={item.href + item.label} className="px-2">
                   <SidebarMenuButton
                     asChild
-                    isActive={pathname.startsWith(item.href) && item.href !== '/inbox' ? true : pathname === '/inbox' && item.href === '/inbox'}
-                    size="lg"
+                    isActive={false}
+                    size="default"
                     tooltip={item.label}
                     variant="ghost"
                   >

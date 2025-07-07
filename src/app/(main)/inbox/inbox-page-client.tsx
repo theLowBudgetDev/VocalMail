@@ -26,6 +26,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { markEmailAsRead, archiveEmail, deleteUserEmail } from "@/lib/actions";
 import { toast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
 
 interface InboxPageClientProps {
     initialEmails: Email[];
@@ -276,28 +277,28 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
     <TooltipProvider>
       <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 h-full">
         <div className={cn(
-            "col-span-1 xl:col-span-1 border-r bg-card h-full flex flex-col",
+            "col-span-1 xl:col-span-1 border-r bg-background h-full flex flex-col",
             isMobile && selectedEmailId && "hidden"
           )}>
           <ScrollArea className="flex-1">
              {inboxEmails.length > 0 ? (
-                <div className="flex flex-col gap-2 p-4">
+                <div className="flex flex-col">
                     {inboxEmails.map((email) => (
                         <button
                           key={email.id}
                           className={cn(
-                              "w-full text-left p-3 rounded-lg transition-colors flex gap-3 items-start border-b border-border",
+                              "w-full text-left p-3 flex gap-3 items-start border-b",
                               selectedEmailId === email.id ? "bg-muted" : "hover:bg-muted/50"
                           )}
                           onClick={() => handleSelectEmail(email)}
                          >
-                          <Avatar className="h-8 w-8">
+                          <Avatar className="h-9 w-9">
                               <AvatarImage src={getSenderAvatar(email.senderId)} alt={email.senderName} data-ai-hint="avatar person" />
                               <AvatarFallback>{email.senderName.charAt(0)}</AvatarFallback>
                           </Avatar>
-                          <div className="flex-1 overflow-hidden">
+                          <div className="flex-1 overflow-hidden flex flex-col gap-0.5">
                               <div className="flex justify-between items-baseline gap-2">
-                                  <p className={cn("font-semibold truncate", !email.read && "text-foreground")}>{email.senderName}</p>
+                                  <p className={cn("font-semibold text-sm truncate", !email.read && "text-foreground")}>{email.senderName}</p>
                                   <p className="text-xs text-muted-foreground shrink-0">
                                       {formatDistanceToNow(new Date(email.sentAt), { addSuffix: true })}
                                   </p>
@@ -326,18 +327,20 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
                             <ArrowLeft />
                         </Button>
                     )}
-                    <Tooltip>
-                      <TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={handleReplyEmail}><Reply className="h-4 w-4"/></Button></TooltipTrigger>
-                      <TooltipContent><p>Reply</p></TooltipContent>
-                    </Tooltip>
-                     <Tooltip>
-                      <TooltipTrigger asChild><Button variant="ghost" size="icon"><ReplyAll className="h-4 w-4"/></Button></TooltipTrigger>
-                      <TooltipContent><p>Reply All</p></TooltipContent>
-                    </Tooltip>
-                     <Tooltip>
-                      <TooltipTrigger asChild><Button variant="ghost" size="icon"><Forward className="h-4 w-4"/></Button></TooltipTrigger>
-                      <TooltipContent><p>Forward</p></TooltipContent>
-                    </Tooltip>
+                    <div className="flex items-center gap-1 border-r pr-2">
+                        <Tooltip>
+                          <TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={handleReplyEmail}><Reply className="h-4 w-4"/></Button></TooltipTrigger>
+                          <TooltipContent><p>Reply</p></TooltipContent>
+                        </Tooltip>
+                         <Tooltip>
+                          <TooltipTrigger asChild><Button variant="ghost" size="icon"><ReplyAll className="h-4 w-4"/></Button></TooltipTrigger>
+                          <TooltipContent><p>Reply All</p></TooltipContent>
+                        </Tooltip>
+                         <Tooltip>
+                          <TooltipTrigger asChild><Button variant="ghost" size="icon"><Forward className="h-4 w-4"/></Button></TooltipTrigger>
+                          <TooltipContent><p>Forward</p></TooltipContent>
+                        </Tooltip>
+                    </div>
                  </div>
                  <div className="flex items-center gap-2">
                     <Tooltip>
@@ -352,7 +355,7 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
               </div>
               <ScrollArea className="flex-1">
                 <div className="p-6">
-                   <div className="flex items-start justify-between gap-4 mb-6">
+                   <div className="flex items-center justify-between gap-4 mb-2">
                         <div className="flex items-start gap-4">
                              {senderOfSelectedEmail && (
                                 <Avatar className="h-10 w-10">
@@ -373,7 +376,8 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
                           </p>
                         </div>
                    </div>
-                  <h2 className="text-lg font-bold mb-4">{selectedEmail.subject}</h2>
+                  <h2 className="text-xl font-bold mt-4 mb-2">{selectedEmail.subject}</h2>
+                  <Separator className="my-4 w-full" />
                   <div className="text-sm leading-relaxed whitespace-pre-wrap">{selectedEmail.body}</div>
                 </div>
               </ScrollArea>
