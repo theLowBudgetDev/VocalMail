@@ -296,9 +296,9 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
                               <AvatarFallback>{email.senderName.charAt(0)}</AvatarFallback>
                           </Avatar>
                           <div className="flex-1 overflow-hidden">
-                              <div className="flex justify-between items-baseline">
+                              <div className="flex justify-between items-baseline gap-2">
                                   <p className={cn("font-semibold truncate", !email.read && "text-foreground")}>{email.senderName}</p>
-                                  <p className="text-xs text-muted-foreground">
+                                  <p className="text-xs text-muted-foreground shrink-0">
                                       {formatDistanceToNow(new Date(email.sentAt), { addSuffix: true })}
                                   </p>
                               </div>
