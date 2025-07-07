@@ -287,24 +287,30 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
                         <button
                           key={email.id}
                           className={cn(
-                              "w-full text-left p-3 flex gap-3 items-start border-b",
-                              !email.read && "bg-muted/30"
+                              "w-full text-left p-4 flex gap-4 items-start border-b border-border",
+                              selectedEmailId === email.id && "bg-muted"
                           )}
                           onClick={() => handleSelectEmail(email)}
                          >
-                          <Avatar className="h-9 w-9">
+                          <Avatar className="h-10 w-10">
                               <AvatarImage src={getSenderAvatar(email.senderId)} alt={email.senderName} data-ai-hint="avatar person" />
                               <AvatarFallback>{email.senderName.charAt(0)}</AvatarFallback>
                           </Avatar>
-                          <div className="flex-1 overflow-hidden flex flex-col gap-0.5">
-                              <div className="flex justify-between items-baseline gap-2">
-                                  <p className={cn("font-semibold text-sm truncate", !email.read && "text-foreground")}>{email.senderName}</p>
-                                  <p className="text-xs text-muted-foreground shrink-0">
+                          <div className="flex-1 overflow-hidden grid gap-0.5">
+                              <div className="flex justify-between items-baseline">
+                                  <p className={cn("font-semibold text-sm truncate", !email.read ? "text-foreground" : "text-muted-foreground")}>
+                                    {email.senderName}
+                                  </p>
+                                  <p className={cn("text-xs shrink-0", !email.read ? "text-foreground" : "text-muted-foreground")}>
                                       {formatDistanceToNow(new Date(email.sentAt), { addSuffix: true })}
                                   </p>
                               </div>
-                              <p className={cn("text-sm font-medium truncate", !email.read && "text-foreground")}>{email.subject}</p>
-                              <p className="text-xs text-muted-foreground truncate">{email.body}</p>
+                              <p className={cn("font-semibold text-sm truncate", !email.read ? "text-foreground" : "text-muted-foreground")}>
+                                {email.subject}
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {email.body}
+                              </p>
                           </div>
                          </button>
                     ))}
