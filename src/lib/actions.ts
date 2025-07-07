@@ -1,4 +1,3 @@
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -6,6 +5,7 @@ import type { User, Email, Contact } from './data';
 import { users, emails as emailTemplates, contacts as allContacts } from './mock-data';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { cache } from 'react';
 
 const SESSION_COOKIE_NAME = 'vocalmail_session';
 
@@ -42,7 +42,7 @@ export async function logout() {
     redirect('/login');
 }
 
-export async function getLoggedInUser(): Promise<User | null> {
+export const getLoggedInUser = cache(async (): Promise<User | null> => {
     const userId = cookies().get(SESSION_COOKIE_NAME)?.value;
     if (!userId) {
         return null;
@@ -50,7 +50,7 @@ export async function getLoggedInUser(): Promise<User | null> {
 
     const user = users.find(u => u.id === parseInt(userId, 10));
     return user || null;
-}
+});
 
 // --- DATA ACTIONS ---
 
