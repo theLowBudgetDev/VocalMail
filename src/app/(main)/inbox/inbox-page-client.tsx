@@ -373,7 +373,7 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
                           </p>
                         </div>
                    </div>
-                  <h2 className="text-xl font-bold mb-4">{selectedEmail.subject}</h2>
+                  <h2 className="text-lg font-bold mb-4">{selectedEmail.subject}</h2>
                   <div className="text-sm leading-relaxed whitespace-pre-wrap">{selectedEmail.body}</div>
                 </div>
               </ScrollArea>

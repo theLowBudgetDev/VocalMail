@@ -8,16 +8,14 @@ import { HelpCircle, Loader2, Settings } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { cn } from "@/lib/utils";
+import { Label } from "./ui/label";
 
 export function UserNav() {
   const { currentUser, isLoading } = useCurrentUser();
@@ -30,43 +28,42 @@ export function UserNav() {
   if (!currentUser) return null;
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className={cn("w-full h-auto p-2 group-data-[collapsible=icon]:w-12 group-data-[collapsible=icon]:p-3", "group-data-[collapsible=icon]:justify-center justify-start")}>
-            <div className="flex items-center gap-2 overflow-hidden">
-                <Avatar className="h-9 w-9">
-                    <AvatarImage src={currentUser.avatar} alt={currentUser.name} data-ai-hint="avatar person" />
-                    <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col items-start group-data-[collapsible=icon]:hidden">
-                    <p className="text-sm font-medium leading-none truncate">{currentUser.name}</p>
-                    <p className="text-xs leading-none text-muted-foreground truncate">{currentUser.email}</p>
+    <div className={cn("w-full flex items-center gap-2 p-2", "group-data-[collapsible=icon]:p-3 group-data-[collapsible=icon]:justify-center")}>
+        <Avatar className="h-9 w-9">
+            <AvatarImage src={currentUser.avatar} alt={currentUser.name} data-ai-hint="avatar person" />
+            <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
+        </Avatar>
+        <div className="flex flex-col items-start flex-1 overflow-hidden group-data-[collapsible=icon]:hidden">
+            <p className="text-sm font-medium leading-none truncate">{currentUser.name}</p>
+            <p className="text-xs leading-none text-muted-foreground truncate">{currentUser.email}</p>
+        </div>
+        <div className="group-data-[collapsible=icon]:hidden">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 mb-2" align="end" side="top">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="dark-mode">Dark Mode</Label>
+                    <Switch
+                      id="dark-mode"
+                      checked={theme === 'dark'}
+                      onCheckedChange={(checked) => setTheme(checked ? 'dark' : 'light')}
+                    />
+                  </div>
+                  <Button variant="outline" className="w-full" asChild>
+                    <Link href="/help">
+                      <HelpCircle className="mr-2 h-4 w-4" />
+                      Help
+                    </Link>
+                  </Button>
                 </div>
-            </div>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
-        <DropdownMenuLabel className="font-normal">
-             <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{currentUser.name}</p>
-                <p className="text-xs leading-none text-muted-foreground">{currentUser.email}</p>
-             </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={(e) => e.preventDefault()}>
-          <span className="flex-1">Dark Mode</span>
-          <Switch
-            checked={theme === 'dark'}
-            onCheckedChange={(checked) => setTheme(checked ? 'dark' : 'light')}
-          />
-        </DropdownMenuItem>
-         <DropdownMenuItem asChild>
-            <Link href="/help">
-                <HelpCircle className="mr-2 h-4 w-4" />
-                <span>Help</span>
-            </Link>
-         </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+              </PopoverContent>
+            </Popover>
+        </div>
+    </div>
   )
 }
