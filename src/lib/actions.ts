@@ -45,10 +45,7 @@ export async function logout() {
 export async function getLoggedInUser(): Promise<User | null> {
     const userId = cookies().get(SESSION_COOKIE_NAME)?.value;
     if (!userId) {
-        // Default to the first user if not logged in for demo purposes
-        const defaultUser = users[0];
-        cookies().set(SESSION_COOKIE_NAME, String(defaultUser.id), { httpOnly: true, path: '/' });
-        return defaultUser;
+        return null;
     }
 
     const user = users.find(u => u.id === parseInt(userId, 10));
