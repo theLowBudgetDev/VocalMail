@@ -125,12 +125,18 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
     try {
       const { suggestions: generatedSuggestions } = await generateReplySuggestions({ emailBody });
       setSuggestions(generatedSuggestions);
+      if (generatedSuggestions && generatedSuggestions.length > 0) {
+        const suggestionText = generatedSuggestions.map((s, i) => `Suggestion ${i + 1}: ${s}`).join('. ');
+        const fullText = `Here are some suggested replies. ${suggestionText}. To use one, say 'use suggestion' and the number.`;
+        play(fullText);
+      }
     } catch (error) {
       console.error("Failed to generate suggestions:", error);
+      toast({ variant: 'destructive', title: 'Could not generate suggestions.'});
     } finally {
       setIsGeneratingSuggestions(false);
     }
-  }, []);
+  }, [play, toast]);
   
   const handleSummarizeEmail = React.useCallback(async () => {
     if (selectedEmail) {
@@ -165,7 +171,7 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
              toast({ variant: 'destructive', title: 'Failed to mark as read.' });
         }
     }
-  }, [currentUser, isPlaying, stop, router]);
+  }, [currentUser, isPlaying, stop, router, toast]);
 
   const handlePlayEmail = React.useCallback((emailToRead?: Email) => {
     if (emailToRead) {
