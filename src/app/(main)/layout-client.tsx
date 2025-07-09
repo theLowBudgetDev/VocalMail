@@ -13,10 +13,8 @@ import {
   FilePenLine,
   Search,
   FileText,
-  Trash2,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
@@ -78,12 +76,12 @@ export default function VocalMailLayoutClient({
           <SidebarContent>
             <SidebarMenu>
               <SidebarMenuItem className="p-2">
-                <Button asChild className="w-full justify-start h-12 text-md group-data-[collapsible=icon]:w-12 group-data-[collapsible=icon]:h-12 group-data-[collapsible=icon]:p-3">
+                <SidebarMenuButton asChild size="lg" variant="default" className="w-full justify-start text-md">
                   <Link href="/compose">
                     <FilePenLine className="mr-3 h-5 w-5 group-data-[collapsible=icon]:mr-0" />
                     <span className="group-data-[collapsible=icon]:hidden">Compose</span>
                   </Link>
-                </Button>
+                </SidebarMenuButton>
               </SidebarMenuItem>
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.href + item.label} className="px-2">
@@ -92,7 +90,7 @@ export default function VocalMailLayoutClient({
                     isActive={pathname === item.href}
                     size="default"
                     tooltip={item.label}
-                    variant="ghost"
+                    variant="default"
                   >
                     <Link href={item.href}>
                       <item.icon />
