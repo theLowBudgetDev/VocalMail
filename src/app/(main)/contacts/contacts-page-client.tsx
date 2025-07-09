@@ -65,9 +65,9 @@ export default function ContactsPageClient({ initialContacts }: ContactsPageClie
         setSearchQuery(query);
     };
 
-    const handleEmailContact = (email: string, name: string) => {
+    const handleEmailContact = React.useCallback((email: string, name: string) => {
         router.push(`/compose?to=${encodeURIComponent(email)}`);
-    };
+    }, [router]);
 
     const clearSearch = () => {
         setSearchQuery("");
@@ -94,7 +94,7 @@ export default function ContactsPageClient({ initialContacts }: ContactsPageClie
         }
     };
 
-    const handleDeleteContact = async (contactId: number, name: string) => {
+    const handleDeleteContact = React.useCallback(async (contactId: number, name: string) => {
         if (!currentUser) return;
         try {
             await deleteContact(currentUser.id, contactId);
@@ -105,7 +105,7 @@ export default function ContactsPageClient({ initialContacts }: ContactsPageClie
             play(`Could not delete contact ${name}.`);
             toast({ variant: 'destructive', title: 'Failed to delete contact.' });
         }
-    };
+    }, [currentUser, play, router, toast]);
 
     React.useEffect(() => {
         const autorun = searchParams.get('autorun');
@@ -163,7 +163,7 @@ export default function ContactsPageClient({ initialContacts }: ContactsPageClie
         return () => {
             window.removeEventListener('voice-command', handleCommand as EventListener);
         };
-    }, [play, filteredContacts, contacts, handleReadList, handleEmailContact]);
+    }, [play, contacts, handleReadList, handleEmailContact, handleDeleteContact]);
 
     return (
       <div className="p-4 md:p-6">
@@ -256,4 +256,3 @@ export default function ContactsPageClient({ initialContacts }: ContactsPageClie
       </div>
     );
 }
-
