@@ -148,8 +148,11 @@ export async function sendEmail(senderId: number, to: string, subject: string, b
         throw new Error(`Recipient email "${to}" not found.`);
     }
 
-    const newEmail: Email = {
-        id: Math.max(0, ...mockEmails.map(e => e.id)) + 1,
+    const emailId = Math.max(0, ...mockEmails.map(e => e.id)) + 1;
+
+    // The version for the recipient's inbox.
+    const inboxVersion: Email = {
+        id: emailId,
         senderId: sender.id,
         senderName: sender.name,
         senderEmail: sender.email,
@@ -160,10 +163,22 @@ export async function sendEmail(senderId: number, to: string, subject: string, b
         status: 'inbox',
         read: false,
     };
-    
-    // The sent email also needs a 'sent' status for the sender's outbox
-    const sentVersion = {...newEmail, status: 'sent' as const};
 
+    // The version for the sender's sent folder. It's a separate record.
+    const sentVersion: Email = {
+        id: emailId + 1, // Ensure a unique ID
+        senderId: sender.id,
+        senderName: sender.name,
+        senderEmail: sender.email,
+        recipients: [{ name: recipient.name, email: recipient.email }],
+        subject,
+        body,
+        sentAt: new Date().toISOString(),
+        status: 'sent',
+    };
+
+    // Now, push BOTH versions into the mock data store.
+    mockEmails.push(inboxVersion);
     mockEmails.push(sentVersion);
     
     revalidatePath('/sent');
