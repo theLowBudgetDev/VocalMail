@@ -26,7 +26,6 @@ import {
   SidebarProvider,
   SidebarInset,
   SidebarTrigger,
-  SidebarRail,
 } from "@/components/ui/sidebar";
 import { VoiceCommander } from "@/components/voice-commander";
 import { UserNav } from "@/components/user-nav";
@@ -56,7 +55,6 @@ export default function VocalMailLayoutClient({
     <CurrentUserProvider initialUser={currentUser}>
       <SidebarProvider defaultOpen={true}>
         <Sidebar collapsible="icon">
-          <SidebarRail />
           <SidebarHeader className="border-b h-12">
             <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
               <div className="w-8 h-8 flex items-center justify-center">
