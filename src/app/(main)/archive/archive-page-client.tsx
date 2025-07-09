@@ -4,7 +4,7 @@
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { format, formatDistanceToNow } from "date-fns";
-import { Trash2, ArrowLeft } from "lucide-react";
+import { Trash2, ArrowLeft, ArchiveRestore } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/tooltip"
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { deleteUserEmail } from "@/lib/actions";
+import { deleteUserEmail, unarchiveEmail } from "@/lib/actions";
 import { toast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
@@ -111,6 +111,20 @@ export default function ArchivePageClient({ initialEmails, users }: ArchivePageC
       }, 100)
     }
   }, [handleSelectEmail, play]);
+
+  const handleUnarchiveEmail = React.useCallback(async () => {
+    if (selectedEmailId && currentUser) {
+       stop();
+       play("Email moved to inbox.");
+       await unarchiveEmail(selectedEmailId, currentUser.id);
+       const nextEmails = archivedEmails.filter(e => e.id !== selectedEmailId);
+       const nextSelectedId = isMobile ? null : (nextEmails.length > 0 ? nextEmails[0].id : null);
+       setArchivedEmails(nextEmails);
+       setSelectedEmailId(nextSelectedId || null);
+       router.refresh();
+       toast({ title: "Email Unarchived" });
+    }
+  }, [selectedEmailId, currentUser, stop, play, router, isMobile, archivedEmails]);
   
   const handleDeleteEmail = React.useCallback(async () => {
     if (selectedEmailId && currentUser) {
@@ -141,11 +155,14 @@ export default function ArchivePageClient({ initialEmails, users }: ArchivePageC
             play(`Sorry, I couldn't find email number ${emailId}.`);
           }
           break;
+        case 'action_unarchive':
+          handleUnarchiveEmail();
+          break;
         case 'action_delete':
           handleDeleteEmail();
           break;
         case 'action_help':
-          play("You are in your archive. You can say 'read the list', 'read email' followed by a number, or 'delete'.");
+          play("You are in your archive. You can say 'read the list', 'read email' followed by a number, 'unarchive', or 'delete'.");
           break;
       }
     };
@@ -153,7 +170,7 @@ export default function ArchivePageClient({ initialEmails, users }: ArchivePageC
     return () => {
       window.removeEventListener('voice-command', handleCommand as EventListener);
     };
-  }, [handleReadList, handlePlayEmail, handleDeleteEmail, archivedEmails, play]);
+  }, [handleReadList, handlePlayEmail, handleDeleteEmail, handleUnarchiveEmail, archivedEmails, play]);
 
   React.useEffect(() => {
     return () => stop();
@@ -229,6 +246,10 @@ export default function ArchivePageClient({ initialEmails, users }: ArchivePageC
                     )}
                  </div>
                  <div className="flex items-center gap-2">
+                    <Tooltip>
+                      <TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={handleUnarchiveEmail}><ArchiveRestore className="h-4 w-4"/></Button></TooltipTrigger>
+                      <TooltipContent><p>Unarchive</p></TooltipContent>
+                    </Tooltip>
                      <Tooltip>
                       <TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={handleDeleteEmail}><Trash2 className="h-4 w-4"/></Button></TooltipTrigger>
                       <TooltipContent><p>Delete</p></TooltipContent>

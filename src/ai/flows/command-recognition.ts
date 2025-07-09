@@ -36,6 +36,7 @@ const validCommands = [
     "action_reply",
     "action_delete",
     "action_archive",
+    "action_unarchive",
     "action_send",
     "action_use_suggestion",
     "action_search_contact",
@@ -103,6 +104,7 @@ Available commands:
 - "action_reply": To reply to the currently selected email. (Only in inbox). (e.g., "reply")
 - "action_delete": To delete the currently selected email. (Only in inbox). (e.g., "delete this")
 - "action_archive": To archive the currently selected email. (Only in inbox). (e.g., "archive this")
+- "action_unarchive": To unarchive the currently selected email. (Only on archive page). (e.g., "unarchive this", "move to inbox")
 - "action_send": To send the composed email. (Only on compose page). (e.g., "send email")
 - "action_use_suggestion": To use a numbered smart reply suggestion. (Only when viewing an email with suggestions). If the user says "use reply one", "select suggestion 3", extract the number and put it in the 'suggestionId' field. The ID is 1-based.
 - "action_search_contact": To search for a contact by name. (Only on contacts page). If the user says "find Alice", extract the name into 'contactName'.

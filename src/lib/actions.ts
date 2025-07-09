@@ -98,6 +98,15 @@ export async function archiveEmail(emailId: number, userId: number) {
     revalidatePath('/archive');
 }
 
+export async function unarchiveEmail(emailId: number, userId: number) {
+    const emailIndex = mockEmails.findIndex(e => e.id === emailId);
+    if (emailIndex > -1) {
+        mockEmails[emailIndex].status = 'inbox';
+    }
+    revalidatePath('/inbox');
+    revalidatePath('/archive');
+}
+
 export async function deleteUserEmail(emailId: number, userId: number, type: 'inbox' | 'archive' | 'sent' | 'search', originalStatus?: string) {
      const emailIndex = mockEmails.findIndex(e => e.id === emailId);
      if (emailIndex > -1) {
