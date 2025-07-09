@@ -59,7 +59,7 @@ export default function VocalMailLayoutClient({
       <SidebarProvider defaultOpen={true}>
         <Sidebar collapsible="icon">
           <SidebarRail />
-          <SidebarHeader className="border-b">
+          <SidebarHeader className="border-b h-12">
             <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
               <div className="w-8 h-8 flex items-center justify-center">
                 <svg
@@ -89,7 +89,7 @@ export default function VocalMailLayoutClient({
                 <SidebarMenuItem key={item.href + item.label} className="px-2">
                   <SidebarMenuButton
                     asChild
-                    isActive={false}
+                    isActive={pathname === item.href}
                     size="default"
                     tooltip={item.label}
                     variant="ghost"
