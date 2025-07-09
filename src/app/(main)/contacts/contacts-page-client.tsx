@@ -20,6 +20,16 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { toast } from "@/hooks/use-toast";
@@ -33,6 +43,7 @@ export default function ContactsPageClient({ initialContacts }: ContactsPageClie
     const [searchQuery, setSearchQuery] = React.useState("");
     const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
     const [newContactEmail, setNewContactEmail] = React.useState("");
+    const [contactToDelete, setContactToDelete] = React.useState<Contact | null>(null);
 
     const { currentUser } = useCurrentUser();
     const { play } = useTextToSpeech();
@@ -55,7 +66,7 @@ export default function ContactsPageClient({ initialContacts }: ContactsPageClie
     const handleReadList = React.useCallback(() => {
         const contactNames = filteredContacts.map(c => c.name).join(', ');
         if (filteredContacts.length > 0) {
-            play(`Showing ${filteredContacts.length} contacts: ${contactNames}.`);
+            play(`Showing ${filteredContacts.length} contacts: ${contactNames}. You can now say 'email' or 'delete' followed by a contact's name.`);
         } else {
             play('There are no contacts to show.');
         }
@@ -94,18 +105,25 @@ export default function ContactsPageClient({ initialContacts }: ContactsPageClie
         }
     };
 
-    const handleDeleteContact = React.useCallback(async (contactId: number, name: string) => {
-        if (!currentUser) return;
+    const handleDeleteContact = React.useCallback((contact: Contact) => {
+        setContactToDelete(contact);
+        play(`Are you sure you want to delete ${contact.name}? Please confirm the action on screen.`);
+    }, [play]);
+
+    const confirmDeleteContact = React.useCallback(async () => {
+        if (!contactToDelete || !currentUser) return;
         try {
-            await deleteContact(currentUser.id, contactId);
-            play(`Contact ${name} deleted.`);
+            await deleteContact(currentUser.id, contactToDelete.id);
+            play(`Contact ${contactToDelete.name} deleted.`);
             router.refresh();
         } catch (error) {
             console.error(error);
-            play(`Could not delete contact ${name}.`);
+            play(`Could not delete contact ${contactToDelete.name}.`);
             toast({ variant: 'destructive', title: 'Failed to delete contact.' });
+        } finally {
+            setContactToDelete(null);
         }
-    }, [currentUser, play, router, toast]);
+    }, [contactToDelete, currentUser, play, router, toast]);
 
     React.useEffect(() => {
         const autorun = searchParams.get('autorun');
@@ -146,7 +164,7 @@ export default function ContactsPageClient({ initialContacts }: ContactsPageClie
                     if (contactName) {
                         const targetContact = contacts.find(c => c.name.toLowerCase() === contactName.toLowerCase());
                         if (targetContact) {
-                           handleDeleteContact(targetContact.id, targetContact.name);
+                           handleDeleteContact(targetContact);
                         } else {
                             play(`Sorry, I could not find a contact named ${contactName}.`);
                         }
@@ -216,7 +234,7 @@ export default function ContactsPageClient({ initialContacts }: ContactsPageClie
                                 <Button 
                                     variant="destructive" 
                                     size="icon" 
-                                    onClick={() => handleDeleteContact(contact.id, contact.name)}
+                                    onClick={() => handleDeleteContact(contact)}
                                 >
                                     <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -253,6 +271,23 @@ export default function ContactsPageClient({ initialContacts }: ContactsPageClie
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+        <AlertDialog open={!!contactToDelete} onOpenChange={(open) => !open && setContactToDelete(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete the contact
+                        for {contactToDelete?.name}.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setContactToDelete(null)}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={confirmDeleteContact}>
+                        Continue
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
 }
