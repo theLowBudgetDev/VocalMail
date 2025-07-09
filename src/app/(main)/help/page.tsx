@@ -72,20 +72,23 @@ export default function HelpPage() {
     const searchParams = useSearchParams();
     const { play } = useTextToSpeech();
 
-    const generateHelpText = React.useCallback(() => {
-        let text = "Here are the available commands. ";
-        commands.forEach(category => {
-            text += `For ${category.category}: `;
-            const commandDescriptions = category.items.map(item => `You can say ${item.command} to ${item.description.toLowerCase().replace(/\.$/, '')}.`).join(' ');
-            text += commandDescriptions + " ";
-        });
-        return text;
-    }, []);
-
     const handleReadList = React.useCallback(() => {
-        const helpText = generateHelpText();
-        play(helpText);
-    }, [generateHelpText, play]);
+        const categoryNames = commands.map(c => c.category.replace(/\s\(.*\)/, "").trim()).join(', ');
+        const text = `I can provide help on the following topics: ${categoryNames}. Which category would you like to hear about?`;
+        play(text);
+    }, [play]);
+
+    const handleReadCategory = React.useCallback((categoryName: string) => {
+        const category = commands.find(c => c.category.toLowerCase().includes(categoryName.toLowerCase().replace("commands", "").trim()));
+        if (category) {
+            let text = `For ${category.category}: `;
+            const commandDescriptions = category.items.map(item => `You can say ${item.command} to ${item.description.toLowerCase().replace(/\.$/, '')}.`).join(' ');
+            text += commandDescriptions;
+            play(text);
+        } else {
+            play(`Sorry, I could not find a help category called ${categoryName}. Please choose from the list I mentioned earlier.`);
+        }
+    }, [play]);
 
     React.useEffect(() => {
         const autorun = searchParams.get('autorun');
@@ -97,14 +100,16 @@ export default function HelpPage() {
 
     React.useEffect(() => {
         const handleCommand = (event: CustomEvent) => {
-            const { command } = event.detail;
-            if (command === 'action_read_list' || command === 'action_help') {
+            const { command, categoryName } = event.detail;
+            if (command === 'action_help' || command === 'action_read_list') {
                 handleReadList();
+            } else if (command === 'action_read_help_category' && categoryName) {
+                handleReadCategory(categoryName);
             }
         };
         window.addEventListener('voice-command', handleCommand as EventListener);
         return () => window.removeEventListener('voice-command', handleCommand as EventListener);
-    }, [handleReadList]);
+    }, [handleReadList, handleReadCategory]);
 
     return (
         <div className="p-4 md:p-6">
@@ -112,7 +117,7 @@ export default function HelpPage() {
                 <CardHeader>
                     <CardTitle>Help Center</CardTitle>
                     <CardDescription>
-                        Here is a list of all available voice commands. You can say "read the list" to have them read aloud.
+                        Here is a list of all available voice commands. You can say "help" to have the categories read aloud.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>

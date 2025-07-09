@@ -47,6 +47,7 @@ const validCommands = [
     "action_delete_contact",
     "action_search_email",
     "action_help",
+    "action_read_help_category",
     "action_focus_to",
     "action_focus_subject",
     "action_focus_body",
@@ -61,6 +62,7 @@ const RecognizeCommandOutputSchema = z.object({
   contactName: z.string().optional().describe("The name of the contact to search for, add, or delete."),
   searchQuery: z.string().optional().describe("The user's search query for emails."),
   correctionField: z.enum(['to', 'subject', 'body']).optional().describe("The field to correct in the email draft (to, subject, or body)."),
+  categoryName: z.string().optional().describe("The name of the help category to read."),
 });
 export type RecognizeCommandOutput = z.infer<typeof RecognizeCommandOutputSchema>;
 
@@ -90,6 +92,10 @@ Your primary goal on the compose page is to distinguish between **dictation** fo
   - "help" -> \`action_help\`
 - **Dictation (Default):** If the user's speech does **not** clearly match one of the commands above, you MUST assume it is dictation for the currently active field. In this case, set the command to \`unknown\` and provide the full transcription in the \`transcription\` field.
 
+**Help Page Logic (if currentPath is '/help'):**
+- If the user asks for the list of commands or help in general (e.g., "help", "read the list"), use the command \`action_help\`.
+- If the user asks for a specific category of commands (e.g., "tell me about navigation", "read global commands"), set the command to \`action_read_help_category\` and extract the category name into the 'categoryName' field. The valid categories are: "Global Commands", "Navigation", "Working with Lists", "Actions on an Email", "Composing an Email", "Managing Contacts".
+
 Available commands:
 - "navigate_inbox": To go to the inbox page. (e.g., "go to inbox", "show my mail")
 - "navigate_sent": To go to the sent mail page. (e.g., "show sent items")
@@ -114,6 +120,7 @@ Available commands:
 - "action_add_contact": To open the form to add a new contact. (Only on contacts page). (e.g., "add a new contact")
 - "action_delete_contact": To delete a contact by name. (Only on contacts page). (e.g., "delete Bob", "remove Charlie"). Extract the name into 'contactName'.
 - "action_search_email": To search all emails. (Global command). If the user says "search for emails about project budget", extract "project budget" into 'searchQuery'.
+- "action_read_help_category": To read the commands for a specific category on the help page. (e.g., "tell me about navigation"). Extract the category name into 'categoryName'.
 - "action_focus_to": To focus on the recipient field for dictation. (e.g., "recipient", "edit to field")
 - "action_focus_subject": To focus on the subject field for dictation. (e.g., "subject", "edit the subject")
 - "action_focus_body": To focus on the body field for dictation. (e.g., "body", "edit the message")
