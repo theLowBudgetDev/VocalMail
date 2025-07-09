@@ -3,170 +3,274 @@
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { deleteUserEmail } from "@/lib/actions";
-import type { Email } from "@/lib/data";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
+import { Trash2, ArrowLeft } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import type { Email, User } from "@/lib/data";
 import { useTextToSpeech } from "@/hooks/use-text-to-speech";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { deleteUserEmail } from "@/lib/actions";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Trash2 } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
 
 interface ArchivePageClientProps {
     initialEmails: Email[];
+    users: User[];
 }
 
-export default function ArchivePageClient({ initialEmails }: ArchivePageClientProps) {
-    const router = useRouter();
-    const searchParams = useSearchParams();
-    const { currentUser } = useCurrentUser();
-    const [selectedEmail, setSelectedEmail] = React.useState<Email | null>(null);
-    const [archivedEmails, setArchivedEmails] = React.useState<Email[]>(initialEmails);
-    const { play, stop, isPlaying } = useTextToSpeech();
+export default function ArchivePageClient({ initialEmails, users }: ArchivePageClientProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const isMobile = useIsMobile();
+  const { currentUser } = useCurrentUser();
+  
+  const [archivedEmails, setArchivedEmails] = React.useState<Email[]>(initialEmails);
+  const [selectedEmailId, setSelectedEmailId] = React.useState<number | null>(null);
 
-    const handleReadList = React.useCallback(() => {
-        if (isPlaying) {
-            stop();
-            return;
-        }
-        if (archivedEmails.length === 0) {
-            play("Your archive is empty.");
-            return;
-        }
-        const emailSnippets = archivedEmails.map((email, index) => 
+  const { isPlaying, play, stop } = useTextToSpeech();
+  
+  const selectedEmail = React.useMemo(() => {
+    return archivedEmails.find((email) => email.id === selectedEmailId);
+  }, [selectedEmailId, archivedEmails]);
+
+  const senderOfSelectedEmail = React.useMemo(() => {
+    if (!selectedEmail) return null;
+    return users.find(u => u.id === selectedEmail.senderId);
+  }, [selectedEmail, users]);
+
+  React.useEffect(() => {
+    setArchivedEmails(initialEmails);
+  }, [initialEmails]);
+
+  const handleReadList = React.useCallback(() => {
+    if (isPlaying) {
+      stop();
+      return;
+    }
+    if (archivedEmails.length === 0) {
+      play("Your archive is empty.");
+      return;
+    }
+
+    const emailSnippets = archivedEmails
+      .map(
+        (email, index) =>
           `Email ${index + 1}: From ${email.senderName}, Subject: ${email.subject}.`
-        ).join(' ');
-        const fullText = `You have ${archivedEmails.length} archived emails. ${emailSnippets} To read an email, say 'read email' followed by its number.`;
-        play(fullText);
-    }, [archivedEmails, isPlaying, play, stop]);
+      )
+      .join(" ");
+
+    const summary = `You have ${archivedEmails.length} archived emails. ${emailSnippets} To read an email, say 'read email' followed by its number.`;
+    play(summary);
+  }, [archivedEmails, isPlaying, play, stop]);
+  
+  React.useEffect(() => {
+    const autorun = searchParams.get('autorun');
+    if (autorun === 'read_list') {
+        play("Navigated to Archive.", handleReadList);
+        router.replace('/archive', {scroll: false});
+    }
+  }, [searchParams, play, handleReadList, router]);
 
 
-    const handleReadEmail = (email: Email) => {
-        if (!email) return;
+  React.useEffect(() => {
+    if (isMobile === undefined) return;
+
+    if (isMobile) {
+      setSelectedEmailId(null);
+    } else {
+      if (!selectedEmailId && archivedEmails.length > 0) {
+        setSelectedEmailId(archivedEmails[0].id);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobile, archivedEmails]);
+  
+  const handleSelectEmail = React.useCallback(async (email: Email) => {
+    if (isPlaying) {
         stop();
-        setSelectedEmail(email);
-        setTimeout(() => {
-             play(`Email from ${email.senderName}. Subject: ${email.subject}. Body: ${email.body}`);
-        }, 100);
     }
+    setSelectedEmailId(email.id); 
+  }, [isPlaying, stop]);
 
-    const handleDelete = async (emailId: number) => {
-        if (!currentUser) return;
-        try {
-            await deleteUserEmail(emailId, currentUser.id, 'archive');
-            toast({ title: "Email Deleted" });
-            setSelectedEmail(null);
-            router.refresh(); 
-        } catch (error) {
-            console.error(error);
-            toast({ variant: 'destructive', title: 'Failed to delete email.' });
-        }
+  const handlePlayEmail = React.useCallback((emailToRead?: Email) => {
+    if (emailToRead) {
+      handleSelectEmail(emailToRead);
+      setTimeout(() => {
+        const textToRead = `Email from ${emailToRead.senderName}. Subject: ${emailToRead.subject}. Body: ${emailToRead.body}`;
+        play(textToRead);
+      }, 100)
     }
-    
-    React.useEffect(() => {
-        setArchivedEmails(initialEmails);
-    }, [initialEmails]);
+  }, [handleSelectEmail, play]);
+  
+  const handleDeleteEmail = React.useCallback(async () => {
+    if (selectedEmailId && currentUser) {
+       stop();
+       play("Email deleted.");
+       await deleteUserEmail(selectedEmailId, currentUser.id, 'archive');
+       const nextEmails = archivedEmails.filter(e => e.id !== selectedEmailId);
+       const nextSelectedId = isMobile ? null : (nextEmails.length > 0 ? nextEmails[0].id : null);
+       setArchivedEmails(nextEmails);
+       setSelectedEmailId(nextSelectedId || null);
+       router.refresh();
+       toast({ title: "Email Deleted" });
+    }
+  }, [selectedEmailId, currentUser, stop, play, router, isMobile, archivedEmails]);
 
+  React.useEffect(() => {
+    const handleCommand = (event: CustomEvent) => {
+      if (!event.detail) return;
+      const { command, emailId } = event.detail;
+      switch (command) {
+        case 'action_read_list':
+          handleReadList();
+          break;
+        case 'action_read_email':
+          if (emailId && emailId > 0 && emailId <= archivedEmails.length) {
+            handlePlayEmail(archivedEmails[emailId - 1]);
+          } else {
+            play(`Sorry, I couldn't find email number ${emailId}.`);
+          }
+          break;
+        case 'action_delete':
+          handleDeleteEmail();
+          break;
+        case 'action_help':
+          play("You are in your archive. You can say 'read the list', 'read email' followed by a number, or 'delete'.");
+          break;
+      }
+    };
+    window.addEventListener('voice-command', handleCommand as EventListener);
+    return () => {
+      window.removeEventListener('voice-command', handleCommand as EventListener);
+    };
+  }, [handleReadList, handlePlayEmail, handleDeleteEmail, archivedEmails, play]);
 
-    React.useEffect(() => {
-        const autorun = searchParams.get('autorun');
-        if (autorun === 'read_list') {
-            play("Navigated to Archive.", handleReadList);
-            router.replace('/archive', {scroll: false});
-        }
-    }, [searchParams, play, handleReadList, router]);
+  React.useEffect(() => {
+    return () => stop();
+  }, [selectedEmailId, stop]);
 
-    React.useEffect(() => {
-        const handleCommand = (event: CustomEvent) => {
-            const { command, emailId } = event.detail;
+  const getSenderAvatar = (senderId: number) => {
+      const sender = users.find(u => u.id === senderId);
+      return sender?.avatar || '';
+  }
 
-            if (command === 'action_help') {
-                play("You are viewing archived emails. Say 'read the list' or 'read email' and a number to hear an email. You can also say 'delete' and a number.");
-            } else if (command === 'action_read_list') {
-                handleReadList();
-            } else if (command === 'action_read_email' && emailId > 0 && emailId <= archivedEmails.length) {
-                const emailToRead = archivedEmails[emailId - 1];
-                handleReadEmail(emailToRead);
-            } else if (command === 'action_delete' && emailId > 0 && emailId <= archivedEmails.length) {
-                 const emailToDelete = archivedEmails[emailId - 1];
-                 play(`Deleting email ${emailId}.`);
-                 handleDelete(emailToDelete.id);
-            }
-        };
-        window.addEventListener('voice-command', handleCommand as EventListener);
-        return () => window.removeEventListener('voice-command', handleCommand as EventListener);
-    }, [archivedEmails, play, handleReadList]);
-
-    return (
-      <div className="p-4 md:p-6">
-        <Card>
-            <CardHeader>
-                <CardTitle>Archive</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="w-[50px]">#</TableHead>
-                            <TableHead>From</TableHead>
-                            <TableHead>Subject</TableHead>
-                            <TableHead className="text-right">Date</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {archivedEmails.map((email, index) => (
-                            <TableRow key={email.id} onClick={() => setSelectedEmail(email)} className="cursor-pointer">
-                                <TableCell>{index + 1}</TableCell>
-                                <TableCell className="font-medium">{email.senderName}</TableCell>
-                                <TableCell>{email.subject}</TableCell>
-                                <TableCell className="text-right">{format(new Date(email.sentAt), "PPP")}</TableCell>
-                            </TableRow>
-                        ))}
-                        {archivedEmails.length === 0 && (
-                            <TableRow>
-                                <TableCell colSpan={4} className="text-center h-24">No archived emails.</TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
-        {selectedEmail && (
-            <Dialog open={!!selectedEmail} onOpenChange={(isOpen) => { if (!isOpen) { stop(); setSelectedEmail(null); } }}>
-                <DialogContent className="sm:max-w-[625px]">
-                    <DialogHeader>
-                        <DialogTitle>{selectedEmail.subject || "Email Details"}</DialogTitle>
-                        <DialogDescription>
-                            From: {selectedEmail.senderName} &lt;{selectedEmail.senderEmail}&gt;
-                            <br />
-                            Date: {format(new Date(selectedEmail.sentAt), "PPP p")}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="py-4 whitespace-pre-wrap max-h-[60vh] overflow-y-auto">
-                        {selectedEmail.body}
-                    </div>
-                    <DialogFooter className="sm:justify-between">
-                         <Button variant="destructive" onClick={() => handleDelete(selectedEmail.id)}>
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+  return (
+    <TooltipProvider>
+      <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 h-full">
+        <div className={cn(
+            "col-span-1 xl:col-span-1 border-r bg-background h-full flex flex-col",
+            isMobile && selectedEmailId && "hidden"
+          )}>
+          <div className="flex items-center p-2 h-12 border-b">
+            <h2 className="text-lg font-bold px-2">Archive</h2>
+          </div>
+          <ScrollArea className="flex-1">
+             {archivedEmails.length > 0 ? (
+                <div className="flex flex-col">
+                    {archivedEmails.map((email) => (
+                        <button
+                          key={email.id}
+                          className={cn(
+                              "w-full text-left p-4 flex gap-4 items-start border-b border-border",
+                              selectedEmailId === email.id && "bg-muted"
+                          )}
+                          onClick={() => handleSelectEmail(email)}
+                         >
+                          <Avatar className="h-10 w-10">
+                              <AvatarImage src={getSenderAvatar(email.senderId)} alt={email.senderName} data-ai-hint="avatar person" />
+                              <AvatarFallback>{email.senderName.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 overflow-hidden grid gap-0.5">
+                              <div className="flex justify-between items-baseline">
+                                  <p className={cn("font-semibold text-sm truncate text-muted-foreground")}>
+                                    {email.senderName}
+                                  </p>
+                                  <p className={cn("text-xs shrink-0 text-muted-foreground")}>
+                                      {formatDistanceToNow(new Date(email.sentAt), { addSuffix: true })}
+                                  </p>
+                              </div>
+                              <p className={cn("font-semibold text-sm truncate text-muted-foreground")}>
+                                {email.subject}
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {email.body}
+                              </p>
+                          </div>
+                         </button>
+                    ))}
+                </div>
+            ) : (
+              <div className="text-center p-8 text-muted-foreground">No emails in archive.</div>
+            )}
+          </ScrollArea>
+        </div>
+        <div className={cn(
+            "md:col-span-2 xl:col-span-3 h-full bg-background",
+            isMobile && !selectedEmailId ? "hidden" : "flex flex-col"
+          )}>
+          {selectedEmail ? (
+            <>
+              <div className="p-2 h-12 border-b flex justify-between items-center gap-4">
+                 <div className="flex items-center gap-2">
+                    {isMobile && (
+                        <Button variant="ghost" size="icon" onClick={() => { stop(); setSelectedEmailId(null); }}>
+                            <ArrowLeft />
                         </Button>
-                        <div className="flex gap-2">
-                            <Button variant="outline" onClick={() => handleReadEmail(selectedEmail)}>Read Aloud</Button>
-                            <Button onClick={() => { stop(); setSelectedEmail(null); }}>Close</Button>
+                    )}
+                 </div>
+                 <div className="flex items-center gap-2">
+                     <Tooltip>
+                      <TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={handleDeleteEmail}><Trash2 className="h-4 w-4"/></Button></TooltipTrigger>
+                      <TooltipContent><p>Delete</p></TooltipContent>
+                    </Tooltip>
+                 </div>
+              </div>
+              <ScrollArea className="flex-1">
+                <div className="p-6">
+                   <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-4">
+                             {senderOfSelectedEmail && (
+                                <Avatar className="h-10 w-10">
+                                    <AvatarImage src={senderOfSelectedEmail.avatar} alt={senderOfSelectedEmail.name} data-ai-hint="avatar person" />
+                                    <AvatarFallback>{senderOfSelectedEmail.name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                            )}
+                            <div className="grid gap-1">
+                                <p className="font-semibold">{senderOfSelectedEmail?.name}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  To: {currentUser?.name} &lt;{currentUser?.email}&gt;
+                                </p>
+                            </div>
                         </div>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        )}
+                        <div className="text-right">
+                          <p className="text-xs text-muted-foreground whitespace-nowrap">
+                              {format(new Date(selectedEmail.sentAt), "P, p")}
+                          </p>
+                        </div>
+                   </div>
+                   <h1 className="text-xl font-bold mt-4">{selectedEmail.subject}</h1>
+                  <Separator className="my-4" />
+                  <div className="text-sm leading-relaxed whitespace-pre-wrap">{selectedEmail.body}</div>
+                </div>
+              </ScrollArea>
+            </>
+          ) : (
+            <div className={cn("flex items-center justify-center h-full text-muted-foreground", isMobile && "hidden")}>
+              Select an email to read
+            </div>
+          )}
+        </div>
       </div>
-    );
+    </TooltipProvider>
+  );
 }

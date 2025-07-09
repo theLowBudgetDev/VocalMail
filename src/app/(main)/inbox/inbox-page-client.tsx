@@ -286,6 +286,9 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
             "col-span-1 xl:col-span-1 border-r bg-background h-full flex flex-col",
             isMobile && selectedEmailId && "hidden"
           )}>
+           <div className="flex items-center p-2 h-12 border-b">
+            <h2 className="text-lg font-bold px-2">Inbox</h2>
+          </div>
           <ScrollArea className="flex-1">
              {inboxEmails.length > 0 ? (
                 <div className="flex flex-col">
@@ -332,14 +335,14 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
           )}>
           {selectedEmail ? (
             <>
-              <div className="p-2 border-b flex justify-between items-center gap-4">
+              <div className="p-2 h-12 border-b flex justify-between items-center gap-4">
                  <div className="flex items-center gap-2">
                     {isMobile && (
                         <Button variant="ghost" size="icon" onClick={() => { stop(); setSelectedEmailId(null); setSuggestions([]); }}>
                             <ArrowLeft />
                         </Button>
                     )}
-                    <div className="flex items-center gap-1 border-r pr-2">
+                    <div className="flex items-center gap-1 border-r pr-2 mr-2">
                         <Tooltip>
                           <TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={handleReplyEmail}><Reply className="h-4 w-4"/></Button></TooltipTrigger>
                           <TooltipContent><p>Reply</p></TooltipContent>
@@ -377,8 +380,7 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
                             )}
                             <div className="grid gap-1">
                                 <p className="font-semibold">{senderOfSelectedEmail?.name}</p>
-                                <p className="text-sm font-medium">{selectedEmail.subject}</p>
-                                <p className="text-xs text-muted-foreground">
+                                <p className="text-sm text-muted-foreground">
                                   To: {currentUser?.name} &lt;{currentUser?.email}&gt;
                                 </p>
                             </div>
@@ -389,6 +391,7 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
                           </p>
                         </div>
                    </div>
+                   <h1 className="text-xl font-bold mt-4">{selectedEmail.subject}</h1>
                   <Separator className="my-4" />
                   <div className="text-sm leading-relaxed whitespace-pre-wrap">{selectedEmail.body}</div>
                 </div>

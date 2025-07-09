@@ -39,7 +39,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { href: "/inbox", label: "Inbox", icon: Inbox },
   { href: "/sent", label: "Sent", icon: Send },
-  { href: "/inbox", label: "Drafts", icon: FileText },
+  { href: "/drafts", label: "Drafts", icon: FileText },
   { href: "/archive", label: "Archive", icon: Archive },
   { href: "/contacts", label: "Contacts", icon: Contact },
   { href: "/search", label: "Search", icon: Search },

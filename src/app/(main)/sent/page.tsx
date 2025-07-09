@@ -1,14 +1,17 @@
 
-import { getSentEmails, getLoggedInUser } from "@/lib/actions";
+import { getSentEmails, getLoggedInUser, getUsers } from "@/lib/actions";
 import SentPageClient from "./sent-page-client";
 import { redirect } from "next/navigation";
 
 export default async function SentPage() {
     const currentUser = await getLoggedInUser();
     if (!currentUser) {
-        redirect('/login?error=Session expired.');
+        redirect('/');
     }
-    const sentEmails = await getSentEmails(currentUser.id);
+    const [sentEmails, users] = await Promise.all([
+        getSentEmails(currentUser.id),
+        getUsers(),
+    ]);
 
-    return <SentPageClient initialEmails={sentEmails} />;
+    return <SentPageClient initialEmails={sentEmails} users={users} />;
 }
