@@ -75,10 +75,15 @@ export default function VocalMailLayoutClient({
           </SidebarHeader>
           <SidebarContent>
             <SidebarMenu>
-              <SidebarMenuItem className="p-2">
-                <SidebarMenuButton asChild size="lg" variant="default" className="w-full justify-start text-md">
+              <SidebarMenuItem className="px-2">
+                <SidebarMenuButton
+                  asChild
+                  size="default"
+                  variant="default"
+                  isActive={pathname === '/compose'}
+                >
                   <Link href="/compose">
-                    <FilePenLine className="mr-3 h-5 w-5 group-data-[collapsible=icon]:mr-0" />
+                    <FilePenLine />
                     <span className="group-data-[collapsible=icon]:hidden">Compose</span>
                   </Link>
                 </SidebarMenuButton>
