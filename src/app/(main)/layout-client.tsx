@@ -59,7 +59,7 @@ export default function VocalMailLayoutClient({
       <SidebarProvider defaultOpen={true}>
         <Sidebar collapsible="icon">
           <SidebarRail />
-          <SidebarHeader className="p-2">
+          <SidebarHeader className="p-2 border-b">
             <div className="flex items-center justify-between h-12">
               <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
                 <div className="w-8 h-8 flex items-center justify-center">
