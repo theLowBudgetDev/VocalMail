@@ -6,52 +6,62 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTextToSpeech } from "@/hooks/use-text-to-speech";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Bot, Mail, Users, Compass, Edit3 } from "lucide-react";
+import { Bot, Mail, Users, Compass, Edit3, Globe } from "lucide-react";
 
 const commands = [
     {
-        category: "Global Navigation",
+        category: "Global Commands",
+        icon: Globe,
+        items: [
+            { command: "'Search for [query]'", description: "Performs a global search across all your emails, from any page." },
+            { command: "'Help' or 'What can I do?'", description: "Describes the available commands on your current page." },
+        ]
+    },
+    {
+        category: "Navigation",
         icon: Compass,
         items: [
-            { command: "'Go to [page]'", description: "Navigate to Inbox, Sent, Archive, Contacts, Compose, Search, or Help." },
-            { command: "'Search for [query]'", description: "Performs a global search across all your emails." },
+            { command: "'Go to [page]'", description: "Navigate to Inbox, Sent, Archive, Contacts, Compose, or Search." },
         ]
     },
     {
-        category: "Email Lists (Inbox, Sent, etc.)",
+        category: "Working with Lists (Inbox, Sent, etc.)",
         icon: Mail,
         items: [
-            { command: "'Read the list'", description: "Reads out a summary of the emails in the current view." },
-            { command: "'Read email [number]'", description: "Reads the full content of the specified email." },
+            { command: "'Read the list'", description: "Reads out a summary of the items in the current view (e.g., your inbox emails or contacts)." },
+            { command: "'Read email [number]'", description: "Reads the full content of the specified email from the list you're viewing." },
         ]
     },
     {
-        category: "Viewing an Email (in Inbox)",
+        category: "Actions on an Email",
         icon: Bot,
         items: [
-            { command: "'Summarize this email'", description: "Provides a concise AI-generated summary of the email." },
-            { command: "'Reply'", description: "Opens the compose page to reply to the current email." },
-            { command: "'Archive this email'", description: "Moves the email from your inbox to the archive." },
-            { command: "'Delete this email'", description: "Permanently deletes the email." },
-            { command: "'Use suggestion [number]'", description: "Uses a numbered AI-generated smart reply." },
+            { command: "'Summarize this email'", description: "Provides a concise AI-generated summary. (Available in Inbox)" },
+            { command: "'Reply'", description: "Opens the compose page to reply to the current email. (Available in Inbox)" },
+            { command: "'Use suggestion [number]'", description: "Uses one of the numbered AI-generated smart replies. (Available in Inbox)" },
+            { command: "'Archive this email'", description: "Moves the email from your inbox to the archive. (Available in Inbox)" },
+            { command: "'Unarchive this email'", description: "Moves the email from your archive back to the inbox. (Available in Archive)" },
+            { command: "'Delete this email'", description: "Permanently deletes the currently selected email. (Available in Inbox, Archive, Sent)" },
         ]
     },
     {
         category: "Composing an Email",
         icon: Edit3,
         items: [
-            { command: "(Dictate content)", description: "Dictate the recipient's email, the subject, and the body of the email when prompted." },
-            { command: "'Proofread email'", description: "Reads the entire draft back to you before sending." },
-            { command: "'Send email'", description: "Sends the email." },
+            { command: "(Dictate content)", description: "When prompted for a field (To, Subject, or Body), simply speak to fill it in." },
+            { command: "'Recipient' / 'Subject' / 'Body'", description: "Switches focus to a specific field for dictation." },
+            { command: "'Proofread email'", description: "Reads the entire draft back to you for review before sending." },
+            { command: "'Make a correction' or 'Change the [field]'", description: "Allows you to re-dictate a specific field if you made a mistake." },
+            { command: "'Send email'", description: "Sends the email once you are finished." },
         ]
     },
      {
         category: "Managing Contacts",
         icon: Users,
         items: [
-            { command: "'Find [contact name]'", description: "Searches for a specific contact." },
+            { command: "'Find [contact name]'", description: "Searches for a specific contact by name." },
             { command: "'Email [contact name]'", description: "Starts a new email to the specified contact." },
-            { command: "'Add a new contact'", description: "Opens the dialog to add a new contact." },
+            { command: "'Add a new contact'", description: "Opens the form to add a new contact." },
             { command: "'Delete [contact name]'", description: "Deletes the specified contact from your list." },
         ]
     }
@@ -106,7 +116,7 @@ export default function HelpPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <Accordion type="single" collapsible className="w-full" defaultValue="item-0">
+                    <Accordion type="single" collapsible className="w-full">
                         {commands.map((category, index) => (
                             <AccordionItem value={`item-${index}`} key={category.category}>
                                 <AccordionTrigger className="text-lg">
