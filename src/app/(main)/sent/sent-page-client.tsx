@@ -78,17 +78,10 @@ export default function SentPageClient({ initialEmails, users }: SentPageClientP
 
 
   React.useEffect(() => {
-    if (isMobile === undefined) return;
-
     if (isMobile) {
       setSelectedEmailId(null);
-    } else {
-      if (!selectedEmailId && sentEmails.length > 0) {
-        setSelectedEmailId(sentEmails[0].id);
-      }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMobile, sentEmails]);
+  }, [isMobile]);
   
   const handleSelectEmail = React.useCallback(async (email: Email) => {
     if (isPlaying) {
@@ -114,7 +107,7 @@ export default function SentPageClient({ initialEmails, users }: SentPageClientP
        play("Email deleted.");
        await deleteUserEmail(selectedEmailId, currentUser.id, 'sent');
        const nextEmails = sentEmails.filter(e => e.id !== selectedEmailId);
-       const nextSelectedId = isMobile ? null : (nextEmails.length > 0 ? nextEmails[0].id : null);
+       const nextSelectedId = isMobile ? null : null;
        setSentEmails(nextEmails);
        setSelectedEmailId(nextSelectedId || null);
        router.refresh();

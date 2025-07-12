@@ -106,17 +106,10 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
 
 
   React.useEffect(() => {
-    if (isMobile === undefined) return;
-
     if (isMobile) {
       setSelectedEmailId(null);
-    } else {
-      if (!selectedEmailId && inboxEmails.length > 0) {
-        setSelectedEmailId(inboxEmails[0].id);
-      }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMobile, inboxEmails]);
+  }, [isMobile]);
   
   const handleGenerateSuggestions = React.useCallback(async (emailBody: string) => {
     if (!emailBody) return;
@@ -189,7 +182,7 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
       play("Email archived.");
       await archiveEmail(selectedEmailId, currentUser.id);
       const nextEmails = inboxEmails.filter(e => e.id !== selectedEmailId);
-      const nextSelectedId = isMobile ? null : (nextEmails.length > 0 ? nextEmails[0].id : null);
+      const nextSelectedId = isMobile ? null : null;
       setInboxEmails(nextEmails);
       setSelectedEmailId(nextSelectedId || null);
       setSuggestions([]);
@@ -203,7 +196,7 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
        play("Email deleted.");
        await deleteUserEmail(selectedEmailId, currentUser.id, 'inbox');
        const nextEmails = inboxEmails.filter(e => e.id !== selectedEmailId);
-       const nextSelectedId = isMobile ? null : (nextEmails.length > 0 ? nextEmails[0].id : null);
+       const nextSelectedId = isMobile ? null : null;
        setInboxEmails(nextEmails);
        setSelectedEmailId(nextSelectedId || null);
        setSuggestions([]);

@@ -83,17 +83,10 @@ export default function ArchivePageClient({ initialEmails, users }: ArchivePageC
 
 
   React.useEffect(() => {
-    if (isMobile === undefined) return;
-
     if (isMobile) {
       setSelectedEmailId(null);
-    } else {
-      if (!selectedEmailId && archivedEmails.length > 0) {
-        setSelectedEmailId(archivedEmails[0].id);
-      }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMobile, archivedEmails]);
+  }, [isMobile]);
   
   const handleSelectEmail = React.useCallback(async (email: Email) => {
     if (isPlaying) {
@@ -118,7 +111,7 @@ export default function ArchivePageClient({ initialEmails, users }: ArchivePageC
        play("Email moved to inbox.");
        await unarchiveEmail(selectedEmailId, currentUser.id);
        const nextEmails = archivedEmails.filter(e => e.id !== selectedEmailId);
-       const nextSelectedId = isMobile ? null : (nextEmails.length > 0 ? nextEmails[0].id : null);
+       const nextSelectedId = isMobile ? null : null;
        setArchivedEmails(nextEmails);
        setSelectedEmailId(nextSelectedId || null);
        router.refresh();
@@ -132,7 +125,7 @@ export default function ArchivePageClient({ initialEmails, users }: ArchivePageC
        play("Email deleted.");
        await deleteUserEmail(selectedEmailId, currentUser.id, 'archive');
        const nextEmails = archivedEmails.filter(e => e.id !== selectedEmailId);
-       const nextSelectedId = isMobile ? null : (nextEmails.length > 0 ? nextEmails[0].id : null);
+       const nextSelectedId = isMobile ? null : null;
        setArchivedEmails(nextEmails);
        setSelectedEmailId(nextSelectedId || null);
        router.refresh();
