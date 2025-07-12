@@ -2,6 +2,7 @@
 import { getInboxEmails, getLoggedInUser, getUsers } from "@/lib/actions";
 import InboxPageClient from "./inbox-page-client";
 import { redirect } from "next/navigation";
+import type { Email } from "@/lib/data";
 
 export default async function InboxPage() {
     const currentUser = await getLoggedInUser();
@@ -13,5 +14,5 @@ export default async function InboxPage() {
         getUsers(),
     ]);
 
-    return <InboxPageClient initialEmails={inboxEmails} users={users} />;
+    return <InboxPageClient initialEmails={inboxEmails as Email[]} users={users} />;
 }

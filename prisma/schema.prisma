@@ -1,0 +1,55 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./vocalmail.db"
+}
+
+model User {
+  id             Int       @id @default(autoincrement())
+  name           String
+  email          String    @unique
+  avatar         String
+  contacts       Contact[] @relation("UserContacts")
+  ownedContacts  Contact[] @relation("OwnedContacts")
+  sentEmails     Email[]
+  receivedEmails EmailRecipient[]
+}
+
+model Contact {
+  id            Int  @id @default(autoincrement())
+  ownerId       Int
+  contactUserId Int
+  owner         User @relation("OwnedContacts", fields: [ownerId], references: [id], onDelete: Cascade)
+  contactUser   User @relation("UserContacts", fields: [contactUserId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerId, contactUserId])
+}
+
+model Email {
+  id         Int              @id @default(autoincrement())
+  senderId   Int
+  subject    String
+  body       String
+  sentAt     DateTime         @default(now())
+  sender     User             @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  recipients EmailRecipient[]
+  senderStatus String @default("sent") // 'sent' or 'deleted'
+}
+
+model EmailRecipient {
+  id          Int      @id @default(autoincrement())
+  emailId     Int
+  recipientId Int
+  status      String   @default("inbox") // 'inbox', 'archive', 'deleted'
+  read        Boolean  @default(false)
+  email       Email    @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  recipient   User     @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@unique([emailId, recipientId])
+}

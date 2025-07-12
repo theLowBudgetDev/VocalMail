@@ -1,17 +1,9 @@
-export type User = {
-    id: number;
-    name: string;
-    email: string;
-    avatar: string;
-};
+import type { User as PrismaUser, Email as PrismaEmail, Contact as PrismaContact } from '@prisma/client';
 
-export type Contact = {
-    id: number;
-    name: string;
-    email: string;
-    avatar: string;
-}
+export type User = PrismaUser;
+export type Contact = PrismaUser;
 
+// This is a view model for the frontend, combining data from multiple Prisma models.
 export type Email = {
     id: number;
     senderId: number;
@@ -20,12 +12,11 @@ export type Email = {
     subject: string;
     body: string;
     sentAt: string;
-    // Properties below are for recipient view
     read?: boolean;
     status?: 'inbox' | 'archive' | 'deleted' | 'sent';
-     // Property below is for sender view
     recipients?: { name: string; email: string }[];
 };
+
 
 export const emailCategories = [
     { id: 'urgent', name: 'Urgent', description: 'Critical, time-sensitive messages.' },

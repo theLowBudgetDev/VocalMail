@@ -1,7 +1,7 @@
 
 import { redirect } from "next/navigation";
 
+// This page is not used in the single-user demo.
 export default function LoginPage() {
-  // This page is no longer used and redirects to the inbox.
   redirect('/inbox');
 }

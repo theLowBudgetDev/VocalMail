@@ -2,6 +2,7 @@
 import { getLoggedInUser, searchEmails } from "@/lib/actions";
 import SearchPageClient from "./search-page-client";
 import { redirect } from "next/navigation";
+import type { Email } from "@/lib/data";
 
 export default async function SearchPage({
   searchParams,
@@ -16,5 +17,5 @@ export default async function SearchPage({
   const query = searchParams?.q || '';
   const searchResults = query ? await searchEmails(currentUser.id, query) : [];
 
-  return <SearchPageClient initialResults={searchResults} initialQuery={query} />;
+  return <SearchPageClient initialResults={searchResults as Email[]} initialQuery={query} />;
 }
