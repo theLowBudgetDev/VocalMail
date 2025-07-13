@@ -162,7 +162,7 @@ const Sidebar = React.forwardRef<
   React.ComponentProps<"div"> & {
     side?: "left" | "right"
     variant?: "sidebar" | "floating" | "inset"
-    collapsible?: "offcanvas" | "icon" | "none"
+    collapsible?: "icon" | "none"
   }
 >(
   (
@@ -205,7 +205,7 @@ const Sidebar = React.forwardRef<
                 "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
               } as React.CSSProperties
             }
-            side={"left"}
+            side={side}
           >
             <div className="flex h-full w-full flex-col">{children}</div>
           </SheetContent>
@@ -221,7 +221,7 @@ const Sidebar = React.forwardRef<
         data-variant={variant}
         data-side={side}
         className={cn(
-            "group peer hidden md:flex md:flex-col transition-[width] duration-300 ease-in-out",
+            "group peer hidden md:flex md:flex-col transition-[width] duration-300 ease-in-out border-r",
             "w-[var(--sidebar-width)] data-[state=collapsed]:w-[var(--sidebar-width-icon)]",
             "bg-sidebar text-sidebar-foreground",
             className
@@ -279,9 +279,6 @@ const SidebarRail = React.forwardRef<
         "absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] hover:after:bg-sidebar-border group-data-[side=left]:-right-4 group-data-[side=right]:left-0 sm:flex",
         "[[data-side=left]_&]:cursor-w-resize [[data-side=right]_&]:cursor-e-resize",
         "[[data-side=left][data-state=collapsed]_&]:cursor-e-resize [[data-side=right][data-state=collapsed]_&]:cursor-w-resize",
-        "group-data-[collapsible=offcanvas]:translate-x-0 group-data-[collapsible=offcanvas]:after:left-full group-data-[collapsible=offcanvas]:hover:bg-sidebar",
-        "[[data-side=left][data-collapsible=offcanvas]_&]:-right-2",
-        "[[data-side=right][data-collapsible=offcanvas]_&]:-left-2",
         className
       )}
       {...props}
