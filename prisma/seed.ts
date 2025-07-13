@@ -1,5 +1,6 @@
 
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
@@ -273,12 +274,20 @@ async function main() {
     await prisma.email.deleteMany({});
     await prisma.contact.deleteMany({});
     await prisma.user.deleteMany({});
+    await prisma.audioCache.deleteMany({});
     console.log('Existing data cleared.');
+
+    const saltRounds = 10;
+    const defaultPassword = 'password123';
+    const hashedPassword = await bcrypt.hash(defaultPassword, saltRounds);
 
     // Seed users
     for (const u of usersToSeed) {
         await prisma.user.create({
-            data: u,
+            data: {
+                ...u,
+                password: hashedPassword
+            },
         });
     }
     console.log('Users seeded.');
@@ -336,7 +345,7 @@ async function main() {
     }
     console.log('Emails seeded.');
 
-    console.log('Seeding finished.');
+    console.log(`Seeding finished. All seeded users have the password: "${defaultPassword}"`);
 }
 
 main()

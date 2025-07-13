@@ -3,7 +3,7 @@
 'use server';
 
 /**
- * @fileOverview Converts text to speech using Genkit with voice personalization.
+ * @fileOverview Converts text to speech using Genkit with voice personalization and database caching.
  *
  * - textToSpeechConversion - A function that converts text to speech.
  * - TextToSpeechInput - The input type for the textToSpeechConversion function.
@@ -14,6 +14,9 @@ import {ai} from '@/ai/genkit';
 import {googleAI} from '@genkit-ai/googleai';
 import {z} from 'genkit';
 import wav from 'wav';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 const TextToSpeechInputSchema = z.object({
   text: z.string().describe('The text to convert to speech.'),
@@ -29,6 +32,34 @@ export async function textToSpeechConversion(input: TextToSpeechInput): Promise<
   return textToSpeechFlow(input);
 }
 
+async function toWav(
+  pcmData: Buffer,
+  channels = 1,
+  rate = 24000,
+  sampleWidth = 2
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const writer = new wav.Writer({
+      channels,
+      sampleRate: rate,
+      bitDepth: sampleWidth * 8,
+    });
+
+    let bufs: any[] = [];
+    writer.on('error', reject);
+    writer.on('data', function (d) {
+      bufs.push(d);
+    });
+    writer.on('end', function () {
+      resolve(Buffer.concat(bufs).toString('base64'));
+    });
+
+    writer.write(pcmData);
+    writer.end();
+  });
+}
+
+
 const textToSpeechFlow = ai.defineFlow(
   {
     name: 'textToSpeechFlow',
@@ -36,6 +67,18 @@ const textToSpeechFlow = ai.defineFlow(
     outputSchema: TextToSpeechOutputSchema,
   },
   async (input) => {
+    const trimmedText = input.text.trim();
+
+    // 1. Check cache first
+    const cachedAudio = await prisma.audioCache.findUnique({
+        where: { text: trimmedText },
+    });
+
+    if (cachedAudio) {
+        return { media: cachedAudio.audioDataUri };
+    }
+
+    // 2. If not in cache, generate new audio
     const {media} = await ai.generate({
       model: googleAI.model('gemini-2.5-flash-preview-tts'),
       config: {
@@ -46,7 +89,7 @@ const textToSpeechFlow = ai.defineFlow(
           },
         },
       },
-      prompt: input.text,
+      prompt: trimmedText,
     });
 
     if (!media) {
@@ -61,35 +104,17 @@ const textToSpeechFlow = ai.defineFlow(
         throw new Error('TTS returned empty audio data.');
     }
     
-    return {
-      media: 'data:audio/wav;base64,' + (await toWav(audioBuffer)),
-    };
+    const wavBase64 = await toWav(audioBuffer);
+    const audioDataUri = 'data:audio/wav;base64,' + wavBase64;
+
+    // 3. Save the newly generated audio to the cache
+    await prisma.audioCache.create({
+        data: {
+            text: trimmedText,
+            audioDataUri: audioDataUri,
+        },
+    });
+
+    return { media: audioDataUri };
   }
 );
-
-async function toWav(
-  pcmData: Buffer,
-  channels = 1,
-  rate = 24000,
-  sampleWidth = 2
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const writer = new wav.Writer({
-      channels,
-      sampleRate: rate,
-      bitDepth: sampleWidth * 8,
-    });
-
-    let bufs = [] as any[];
-    writer.on('error', reject);
-    writer.on('data', function (d) {
-      bufs.push(d);
-    });
-    writer.on('end', function () {
-      resolve(Buffer.concat(bufs).toString('base64'));
-    });
-
-    writer.write(pcmData);
-    writer.end();
-  });
-}

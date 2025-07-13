@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { useTheme } from "next-themes";
-import { HelpCircle, Loader2, Settings } from "lucide-react";
+import { HelpCircle, Loader2, Settings, LogOut } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button";
@@ -16,10 +16,13 @@ import { Switch } from "@/components/ui/switch";
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { cn } from "@/lib/utils";
 import { Label } from "./ui/label";
+import { logoutUser } from "@/lib/actions";
+import { useRouter } from "next/navigation";
 
 export function UserNav() {
   const { currentUser, isLoading } = useCurrentUser();
   const { theme, setTheme } = useTheme();
+  const router = useRouter();
 
   if (isLoading) {
     return <Loader2 className="h-6 w-6 animate-spin mx-auto" />
@@ -27,10 +30,16 @@ export function UserNav() {
 
   if (!currentUser) return null;
 
+  const handleLogout = async () => {
+    await logoutUser();
+    router.push('/login');
+    router.refresh();
+  }
+
   return (
     <div className={cn("w-full flex items-center gap-2 p-2", "group-data-[collapsible=icon]:p-3 group-data-[collapsible=icon]:justify-center")}>
         <Avatar className="h-9 w-9">
-            <AvatarImage src={currentUser.avatar} alt={currentUser.name} data-ai-hint="avatar person" />
+            <AvatarImage src={currentUser.avatar || ''} alt={currentUser.name} data-ai-hint="avatar person" />
             <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
         </Avatar>
         <div className="flex flex-col items-start flex-1 overflow-hidden group-data-[collapsible=icon]:hidden">
@@ -54,11 +63,15 @@ export function UserNav() {
                       onCheckedChange={(checked) => setTheme(checked ? 'dark' : 'light')}
                     />
                   </div>
-                  <Button variant="outline" className="w-full" asChild>
+                   <Button variant="outline" className="w-full" asChild>
                     <Link href="/help">
                       <HelpCircle className="mr-2 h-4 w-4" />
                       Help
                     </Link>
+                  </Button>
+                  <Button variant="destructive" className="w-full" onClick={handleLogout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
                   </Button>
                 </div>
               </PopoverContent>

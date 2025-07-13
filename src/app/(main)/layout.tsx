@@ -33,7 +33,7 @@ async function VocalMailLayoutWithData({ children }: { children: React.ReactNode
   const currentUser = await getLoggedInUser();
 
   if (!currentUser) {
-    redirect("/");
+    redirect("/login");
   }
 
   return (
