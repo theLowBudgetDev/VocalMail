@@ -29,6 +29,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { playTone } from "@/lib/audio";
 import { sendEmail } from "@/lib/actions";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { usePathname } from "next/navigation";
 
 const emailSchema = z.object({
   to: z.string().email({ message: "Invalid email address." }),
@@ -48,6 +49,7 @@ export default function ComposePage() {
   const { play, stop: stopSpeech, isPlaying } = useTextToSpeech();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const pathname = usePathname();
   const { currentUser } = useCurrentUser();
 
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
@@ -71,6 +73,7 @@ export default function ComposePage() {
     const { to, subject, body } = getValues();
     const proofreadText = `This email is to: ${to}. The subject is: ${subject}. The body is: ${body}. You can now say 'send email' or 'make a correction'.`;
     play(proofreadText);
+    setStep('review');
   }, [getValues, play, stopSpeech, trigger, errors]);
 
   const handleTranscription = React.useCallback(async (transcription: string) => {
@@ -87,7 +90,7 @@ export default function ComposePage() {
 
         if (result.transcription) {
              const currentValue = getValues(currentField);
-             const newValue = currentField === 'body' ? (currentValue ? currentValue + result.transcription + " " : result.transcription + " ") : result.transcription;
+             const newValue = currentField === 'body' ? (currentValue ? currentValue + " " + result.transcription : result.transcription) : result.transcription;
              setValue(currentField, newValue, { shouldValidate: true });
 
             const isValid = await trigger(currentField);
@@ -97,15 +100,10 @@ export default function ComposePage() {
                 const errorMessage = errors[currentField]?.message || `The ${currentField} field is empty. Please try again.`;
                 play(errorMessage);
             } else {
-                play(`${currentField.charAt(0).toUpperCase() + currentField.slice(1)} is set to: ${updatedValue}.`, () => {
-                    if (currentField === 'to') {
-                        setStep('subject');
-                    } else if (currentField === 'subject') {
-                        setStep('body');
-                    } else if (currentField === 'body') {
-                        setStep('review');
-                    }
-                });
+                play(`${currentField.charAt(0).toUpperCase() + currentField.slice(1)} is set to: ${updatedValue}.`);
+                if (currentField === 'to') setStep('subject');
+                else if (currentField === 'subject') setStep('body');
+                else if (currentField === 'body') setStep('review');
             }
         } else {
              play(`I didn't catch that. The ${currentField} field is still empty.`);
@@ -148,8 +146,21 @@ export default function ComposePage() {
   }, []);
 
   const handleRecognitionResult = React.useCallback((result: RecognizeCommandOutput) => {
-    const { command, transcription, correctionField } = result;
+    const { command, transcription, correctionField, searchQuery } = result;
     
+    // Global navigation should always work
+    if (command.startsWith('navigate_')) {
+      const page = command.replace('navigate_', '');
+      stopSpeech();
+      router.push(`/${page}?autorun=read_list`);
+      return;
+    }
+    if (command === 'action_search_email' && searchQuery) {
+        stopSpeech();
+        router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
+        return;
+    }
+
     const isDictation = command === 'unknown' && transcription;
     const isReviewPhase = step === 'review' || step === 'correcting';
 
@@ -161,39 +172,51 @@ export default function ComposePage() {
     switch(command) {
         case 'action_focus_to':
             setStep('to');
+            play("Recipient field selected.");
             break;
         case 'action_focus_subject':
             setStep('subject');
+            play("Subject field selected.");
             break;
         case 'action_focus_body':
             setStep('body');
+            play("Body field selected.");
             break;
         case 'action_send':
             if (isReviewPhase) {
                 handleSubmit(onSubmit)();
+            } else {
+                play("Please proofread the email first by saying 'proofread'.")
             }
             break;
         case 'action_proofread_email':
-             setStep('review');
+             handleProofread();
             break;
         case 'action_correct_email':
              setStep(correctionField || 'correcting');
+             if (correctionField) {
+                 play(`Correcting ${correctionField}. Please dictate the new content.`);
+             } else {
+                 play("Which field to correct? Say recipient, subject, or body.");
+             }
             break;
         case 'action_help':
             play("You are composing an email. Say 'recipient', 'subject', or 'body' to switch fields. Hold the mic to dictate. Say 'proofread' when you are finished.");
             break;
         default:
-             if (!isDictation) {
+             if (isDictation && isReviewPhase) {
+                play("To make changes, please say 'make a correction' first.");
+             } else if (!isDictation) {
                 play(`Sorry, the command ${command.replace(/_/g, ' ')} is not available here.`);
              }
     }
-  }, [step, handleSubmit, onSubmit, play, handleTranscription]);
+  }, [step, handleSubmit, onSubmit, play, handleTranscription, router, stopSpeech, handleProofread]);
 
 
   const processAudio = React.useCallback(async (audioDataUri: string) => {
     setIsProcessing(true);
     try {
-        const result = await recognizeCommand({ audioDataUri, currentPath: '/compose' });
+        const result = await recognizeCommand({ audioDataUri, currentPath: pathname });
         handleRecognitionResult(result);
     } catch (error) {
          console.error("Processing failed:", error);
@@ -201,12 +224,13 @@ export default function ComposePage() {
     } finally {
         setIsProcessing(false);
     }
-  }, [handleRecognitionResult, toast]);
+  }, [handleRecognitionResult, toast, pathname]);
 
   const startListening = React.useCallback(async () => {
     if (isListening || isProcessing || isPlaying) return;
 
     try {
+      stopSpeech();
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       playTone("start");
       mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
@@ -234,7 +258,7 @@ export default function ComposePage() {
       console.error("Mic error:", err);
       toast({ variant: "destructive", title: "Microphone Access Denied" });
     }
-  }, [isListening, isProcessing, isPlaying, toast, processAudio]);
+  }, [isListening, isProcessing, isPlaying, toast, processAudio, stopSpeech]);
   
   React.useEffect(() => {
     return () => {
@@ -245,33 +269,6 @@ export default function ComposePage() {
     };
   }, [stopSpeech]);
 
-  React.useEffect(() => {
-    if(isSending || isPlaying || isProcessing) return;
-    
-    const playStepPrompt = () => {
-        switch(step) {
-            case 'to':
-                play("Who is the recipient? Hold the mic to dictate, or say 'subject' or 'body' to switch.");
-                break;
-            case 'subject':
-                play("What is the subject?");
-                break;
-            case 'body':
-                play("Please dictate the body of the email.");
-                break;
-            case 'review':
-                handleProofread();
-                break;
-            case 'correcting':
-                play("Which field would you like to correct? Recipient, subject, or body?");
-                break;
-        }
-    }
-
-    const timer = setTimeout(playStepPrompt, 100);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, isSending, isProcessing]);
 
   React.useEffect(() => {
     const to = searchParams.get("to");
@@ -287,12 +284,15 @@ export default function ComposePage() {
       trigger(); 
       setStep('review');
     } else {
-      const autorun = searchParams.get('autorun');
-      if (autorun === 'read_list') {
-          router.replace('/compose', {scroll: false});
-      }
        setStep('to');
     }
+
+    const autorun = searchParams.get('autorun');
+    if (autorun === 'read_list') {
+        play("Navigated to Compose page. Who is the recipient?");
+        router.replace('/compose', {scroll: false});
+    }
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, setValue, trigger]);
 
@@ -334,7 +334,7 @@ export default function ComposePage() {
 
   const isInteracting = isListening || isProcessing || isPlaying;
   
-  const getFieldHelperText = (field: CompositionStep) => {
+  const getFieldHelperText = (field: 'to' | 'subject' | 'body') => {
     if (step === field && !isInteracting) {
         return `Hold Spacebar or the mic button to dictate.`;
     }
@@ -356,7 +356,7 @@ export default function ComposePage() {
           <CardHeader>
             <CardTitle>Compose Email</CardTitle>
             <CardDescription>
-              The app will guide you. Say 'recipient', 'subject', or 'body' anytime to switch fields.
+              Use the mic to dictate or say a command like 'recipient', 'subject', or 'proofread'.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -412,7 +412,7 @@ export default function ComposePage() {
                       <><Send className="mr-2 h-4 w-4" />Send Email</>
                     )}
                   </Button>
-                   <Button type="button" variant="outline" onClick={() => setStep('review')} disabled={isInteracting} size="lg" className="w-full sm:w-auto">
+                   <Button type="button" variant="outline" onClick={handleProofread} disabled={isInteracting} size="lg" className="w-full sm:w-auto">
                       <FileText className="mr-2 h-4 w-4" />
                       Proofread
                   </Button>

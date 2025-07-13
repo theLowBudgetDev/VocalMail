@@ -80,8 +80,11 @@ const prompt = ai.definePrompt({
 
 The user is currently on the '{{currentPath}}' page. Use this context to resolve ambiguity.
 
+**Global Navigation Commands:**
+First, check if the user's command is a clear navigation request like "go to inbox", "navigate sent", "open contacts", etc. If it is, you MUST prioritize the corresponding "navigate_..." command, even if the user is on the compose page.
+
 **Compose Page Logic (if currentPath is '/compose'):**
-Your primary goal on the compose page is to distinguish between **dictation** for a field and a **command** to change focus or perform an action.
+If the command is NOT a clear navigation request, your primary goal on the compose page is to distinguish between **dictation** for a field and a **command** to change focus or perform an action.
 - **Specific Commands:** The user can issue clear commands.
   - "recipient", "to", "to field" -> \`action_focus_to\`
   - "subject", "subject line" -> \`action_focus_subject\`
