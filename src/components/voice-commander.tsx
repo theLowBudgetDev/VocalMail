@@ -130,14 +130,27 @@ export function VoiceCommander() {
     if (isComposePage) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.code === 'Space' && !event.repeat && !isListening && !isProcessing) {
+      const target = event.target as HTMLElement;
+      if (
+        event.code === 'Space' && 
+        !event.repeat && 
+        !isListening && 
+        !isProcessing &&
+        target.tagName !== 'INPUT' &&
+        target.tagName !== 'TEXTAREA'
+      ) {
           event.preventDefault(); 
           startListening();
       }
     };
 
     const handleKeyUp = (event: KeyboardEvent) => {
-      if (event.code === 'Space') {
+      const target = event.target as HTMLElement;
+      if (
+        event.code === 'Space' &&
+        target.tagName !== 'INPUT' &&
+        target.tagName !== 'TEXTAREA'
+      ) {
           event.preventDefault();
           stopListening();
       }

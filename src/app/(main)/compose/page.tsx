@@ -298,14 +298,25 @@ export default function ComposePage() {
 
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.code === 'Space' && !event.repeat) {
+      const target = event.target as HTMLElement;
+      if (
+        event.code === 'Space' && 
+        !event.repeat && 
+        target.tagName !== 'INPUT' && 
+        target.tagName !== 'TEXTAREA'
+      ) {
         event.preventDefault();
         startListening();
       }
     };
 
     const handleKeyUp = (event: KeyboardEvent) => {
-      if (event.code === 'Space') {
+      const target = event.target as HTMLElement;
+      if (
+        event.code === 'Space' && 
+        target.tagName !== 'INPUT' && 
+        target.tagName !== 'TEXTAREA'
+      ) {
         event.preventDefault();
         stopListening();
       }
