@@ -1,6 +1,9 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,51 +14,51 @@ datasource db {
 }
 
 model User {
-  id        Int       @id @default(autoincrement())
-  email     String    @unique
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
   name      String
   password  String
   avatar    String?
-  sentEmails Email[]  @relation("SentEmails")
-  receivedEmails EmailRecipient[]
-  contacts  Contact[] @relation("UserContacts")
-  ownedContacts Contact[] @relation("OwnedContacts")
-}
-
-model Contact {
-  ownerId       Int
-  contactUserId Int
-  owner         User @relation("OwnedContacts", fields: [ownerId], references: [id])
-  contactUser   User @relation("UserContacts", fields: [contactUserId], references: [id])
-
-  @@id([ownerId, contactUserId])
+  sentEmails Email[] @relation("SentEmails")
+  receivedEmails EmailRecipient[] @relation("ReceivedEmails")
+  contacts  Contact[] @relation("Owner")
+  contactOf Contact[] @relation("ContactUser")
 }
 
 model Email {
-  id            Int      @id @default(autoincrement())
-  senderId      Int
-  subject       String
-  body          String
-  sentAt        DateTime @default(now())
-  senderStatus  String   @default("sent") // e.g., 'sent', 'deleted'
-  sender        User     @relation("SentEmails", fields: [senderId], references: [id])
-  recipients    EmailRecipient[]
+  id         Int      @id @default(autoincrement())
+  sender     User     @relation("SentEmails", fields: [senderId], references: [id])
+  senderId   Int
+  subject    String
+  body       String
+  sentAt     DateTime @default(now())
+  senderStatus String  // e.g., 'sent', 'deleted'
+  recipients EmailRecipient[]
 }
 
 model EmailRecipient {
+  email       Email    @relation(fields: [emailId], references: [id])
   emailId     Int
+  recipient   User     @relation("ReceivedEmails", fields: [recipientId], references: [id])
   recipientId Int
   read        Boolean  @default(false)
-  status      String   @default("inbox") // e.g., 'inbox', 'archive', 'deleted'
-  email       Email    @relation(fields: [emailId], references: [id], onDelete: Cascade)
-  recipient   User     @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  status      String   // e.g., 'inbox', 'archive', 'deleted'
 
   @@id([emailId, recipientId])
 }
 
+model Contact {
+  owner         User @relation("Owner", fields: [ownerId], references: [id])
+  ownerId       Int
+  contactUser   User @relation("ContactUser", fields: [contactUserId], references: [id])
+  contactUserId Int
+
+  @@id([ownerId, contactUserId])
+}
+
 model AudioCache {
-    id           Int      @id @default(autoincrement())
-    text         String   @unique
-    audioDataUri String
-    createdAt    DateTime @default(now())
+  id           Int      @id @default(autoincrement())
+  text         String   @unique
+  audioDataUri String
+  createdAt    DateTime @default(now())
 }
