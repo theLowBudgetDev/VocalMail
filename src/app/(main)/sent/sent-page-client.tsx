@@ -194,7 +194,7 @@ export default function SentPageClient({ initialEmails, users }: SentPageClientP
                                       <p className={cn("font-semibold text-sm truncate text-muted-foreground")}>
                                         {recipientInfo.name}
                                       </p>
-                                      <p className={cn("text-xs shrink-0 text-muted-foreground")}>
+                                      <p className={cn("text-xs shrink-0 text-muted-foreground pr-4")}>
                                           {formatDistanceToNow(new Date(email.sentAt), { addSuffix: true })}
                                       </p>
                                   </div>
@@ -215,7 +215,7 @@ export default function SentPageClient({ initialEmails, users }: SentPageClientP
           </ScrollArea>
         </div>
         <div className={cn(
-            "md:col-span-2 xl:col-span-3 bg-background",
+            "md:col-span-2 xl:col-span-3 bg-background flex flex-col",
             isMobile && !selectedEmailId ? "hidden" : "flex flex-col"
           )}>
           {selectedEmail ? (
@@ -235,7 +235,7 @@ export default function SentPageClient({ initialEmails, users }: SentPageClientP
                     </Tooltip>
                  </div>
               </div>
-              <div className="flex-1 p-6 overflow-y-auto">
+              <div className="flex-1 p-6 overflow-hidden">
                  <div className="flex items-start justify-between gap-4">
                       <div className="flex items-start gap-4">
                           <Avatar className="h-10 w-10">

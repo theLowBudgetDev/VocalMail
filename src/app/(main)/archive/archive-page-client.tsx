@@ -223,7 +223,7 @@ export default function ArchivePageClient({ initialEmails, users }: ArchivePageC
           </ScrollArea>
         </div>
         <div className={cn(
-            "md:col-span-2 xl:col-span-3 bg-background",
+            "md:col-span-2 xl:col-span-3 bg-background flex flex-col",
             isMobile && !selectedEmailId ? "hidden" : "flex flex-col"
           )}>
           {selectedEmail ? (
@@ -247,7 +247,7 @@ export default function ArchivePageClient({ initialEmails, users }: ArchivePageC
                     </Tooltip>
                  </div>
               </div>
-              <div className="flex-1 p-6 overflow-y-auto">
+              <div className="flex-1 p-6 overflow-hidden">
                  <div className="flex items-start justify-between gap-4">
                       <div className="flex items-start gap-4">
                            {senderOfSelectedEmail && (
