@@ -269,13 +269,21 @@ const emailsToSeed = [
 async function main() {
     console.log('Start seeding...');
 
-    // Clean up existing data
+    // Clean up existing data in the correct order to avoid constraint violations
     await prisma.emailRecipient.deleteMany({});
     await prisma.email.deleteMany({});
     await prisma.contact.deleteMany({});
-    await prisma.user.deleteMany({});
     await prisma.audioCache.deleteMany({});
-    console.log('Existing data cleared.');
+    // We only delete the seeded users, not all users.
+    await prisma.user.deleteMany({
+        where: {
+            email: {
+                in: usersToSeed.map(u => u.email),
+            },
+        },
+    });
+
+    console.log('Existing mock data cleared.');
 
     const saltRounds = 10;
     const defaultPassword = 'password123';
@@ -356,3 +364,5 @@ main()
     .finally(async () => {
         await prisma.$disconnect();
     });
+
+    
