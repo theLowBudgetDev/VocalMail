@@ -23,8 +23,10 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  SidebarProvider,
+  SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { VoiceCommander } from "@/components/voice-commander";
 import { UserNav } from "@/components/user-nav";
 import { CurrentUserProvider } from "@/hooks/use-current-user";
@@ -33,7 +35,6 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import VocalMailMainContent from "./main-content";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { SidebarProvider } from "@/components/ui/sidebar";
 
 const navItems = [
   { href: "/inbox", label: "Inbox", icon: Inbox },
@@ -71,6 +72,7 @@ function MobileHeader() {
                 </Button>
               </SheetTrigger>
               <SheetContent side="right" className="p-0 w-64">
+                <SheetTitle className="sr-only">Main Menu</SheetTitle>
                  <SidebarContentForSheet onLinkClick={() => setIsSheetOpen(false)} />
               </SheetContent>
             </Sheet>
@@ -99,7 +101,7 @@ function SidebarContentForSheet({ onLinkClick }: { onLinkClick: () => void }) {
               </SidebarHeader>
               <SidebarContent className="p-0 flex-1">
                 <SidebarMenu className="mt-2">
-                  <SidebarMenuItem className="px-2">
+                  <SidebarMenuItem className="px-2 mt-2">
                     <SidebarMenuButton
                       asChild
                       size="default"
