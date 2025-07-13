@@ -111,13 +111,12 @@ export default function ArchivePageClient({ initialEmails, users }: ArchivePageC
        play("Email moved to inbox.");
        await unarchiveEmail(selectedEmailId, currentUser.id);
        const nextEmails = archivedEmails.filter(e => e.id !== selectedEmailId);
-       const nextSelectedId = isMobile ? null : null;
        setArchivedEmails(nextEmails);
-       setSelectedEmailId(nextSelectedId || null);
+       setSelectedEmailId(null);
        router.refresh();
        toast({ title: "Email Unarchived" });
     }
-  }, [selectedEmailId, currentUser, stop, play, router, isMobile, archivedEmails]);
+  }, [selectedEmailId, currentUser, stop, play, router, archivedEmails]);
   
   const handleDeleteEmail = React.useCallback(async () => {
     if (selectedEmailId && currentUser) {
@@ -125,13 +124,12 @@ export default function ArchivePageClient({ initialEmails, users }: ArchivePageC
        play("Email deleted.");
        await deleteUserEmail(selectedEmailId, currentUser.id, 'archive');
        const nextEmails = archivedEmails.filter(e => e.id !== selectedEmailId);
-       const nextSelectedId = isMobile ? null : null;
        setArchivedEmails(nextEmails);
-       setSelectedEmailId(nextSelectedId || null);
+       setSelectedEmailId(null);
        router.refresh();
        toast({ title: "Email Deleted" });
     }
-  }, [selectedEmailId, currentUser, stop, play, router, isMobile, archivedEmails]);
+  }, [selectedEmailId, currentUser, stop, play, router, archivedEmails]);
 
   React.useEffect(() => {
     const handleCommand = (event: CustomEvent) => {

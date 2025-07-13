@@ -182,13 +182,12 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
       play("Email archived.");
       await archiveEmail(selectedEmailId, currentUser.id);
       const nextEmails = inboxEmails.filter(e => e.id !== selectedEmailId);
-      const nextSelectedId = isMobile ? null : null;
+      setSelectedEmailId(null);
       setInboxEmails(nextEmails);
-      setSelectedEmailId(nextSelectedId || null);
       setSuggestions([]);
       router.refresh();
     }
-  }, [selectedEmailId, currentUser, stop, play, router, isMobile, inboxEmails]);
+  }, [selectedEmailId, currentUser, stop, play, router, inboxEmails]);
   
   const handleDeleteEmail = React.useCallback(async () => {
     if (selectedEmailId && currentUser) {
@@ -196,13 +195,12 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
        play("Email deleted.");
        await deleteUserEmail(selectedEmailId, currentUser.id, 'inbox');
        const nextEmails = inboxEmails.filter(e => e.id !== selectedEmailId);
-       const nextSelectedId = isMobile ? null : null;
+       setSelectedEmailId(null);
        setInboxEmails(nextEmails);
-       setSelectedEmailId(nextSelectedId || null);
        setSuggestions([]);
        router.refresh();
     }
-  }, [selectedEmailId, currentUser, stop, play, router, isMobile, inboxEmails]);
+  }, [selectedEmailId, currentUser, stop, play, router, inboxEmails]);
 
   const handleReplyEmail = React.useCallback(() => {
     if (selectedEmail) {

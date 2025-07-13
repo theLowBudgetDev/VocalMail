@@ -107,13 +107,12 @@ export default function SentPageClient({ initialEmails, users }: SentPageClientP
        play("Email deleted.");
        await deleteUserEmail(selectedEmailId, currentUser.id, 'sent');
        const nextEmails = sentEmails.filter(e => e.id !== selectedEmailId);
-       const nextSelectedId = isMobile ? null : null;
        setSentEmails(nextEmails);
-       setSelectedEmailId(nextSelectedId || null);
+       setSelectedEmailId(null);
        router.refresh();
        toast({ title: "Email Deleted" });
     }
-  }, [selectedEmailId, currentUser, stop, play, router, isMobile, sentEmails]);
+  }, [selectedEmailId, currentUser, stop, play, router, sentEmails]);
 
   React.useEffect(() => {
     const handleCommand = (event: CustomEvent) => {
@@ -190,7 +189,7 @@ export default function SentPageClient({ initialEmails, users }: SentPageClientP
                                   )}
                                   <AvatarFallback>{recipientInfo.name.charAt(0)}</AvatarFallback>
                               </Avatar>
-                              <div className="flex-1 overflow-hidden grid gap-0.5">
+                              <div className="flex-1 overflow-hidden grid gap-0.5 pr-4">
                                   <div className="flex justify-between items-baseline">
                                       <p className={cn("font-semibold text-sm truncate text-muted-foreground")}>
                                         {recipientInfo.name}
