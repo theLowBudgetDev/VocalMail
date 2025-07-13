@@ -6,6 +6,7 @@ import { PrismaClient } from '@prisma/client';
 import { cache } from 'react';
 import { getSession, createSession, deleteSession } from '@/lib/session';
 import bcrypt from 'bcrypt';
+import { redirect } from 'next/navigation';
 
 const prisma = new PrismaClient();
 
@@ -24,35 +25,42 @@ export async function loginUser(data: { email: string; password?: string }) {
     }
 
     await createSession(user.id);
-    return { success: true };
+    // Redirect must be called outside of a try/catch block
+    redirect('/inbox');
 }
 
 export async function registerUser(data: { name: string; email: string; password?: string }) {
-    const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
-    if (existingUser) {
-        return { success: false, error: 'An account with this email already exists.' };
+    try {
+        const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
+        if (existingUser) {
+            return { success: false, error: 'An account with this email already exists.' };
+        }
+
+        const hashedPassword = data.password ? await bcrypt.hash(data.password, 10) : null;
+        if (!hashedPassword) {
+            return { success: false, error: 'Password is required.' };
+        }
+
+        await prisma.user.create({
+            data: {
+                name: data.name,
+                email: data.email,
+                password: hashedPassword,
+                avatar: `https://placehold.co/40x40.png`,
+            },
+        });
+    } catch (error) {
+        return { success: false, error: 'An unexpected error occurred during registration.' };
     }
-
-    const hashedPassword = data.password ? await bcrypt.hash(data.password, 10) : null;
-    if (!hashedPassword) {
-        return { success: false, error: 'Password is required.' };
-    }
-
-    await prisma.user.create({
-        data: {
-            name: data.name,
-            email: data.email,
-            password: hashedPassword,
-            avatar: `https://placehold.co/40x40.png`,
-        },
-    });
-
-    return { success: true };
+    
+    // Redirect after successful creation
+    redirect('/login?message=Registration successful. Please log in.');
 }
+
 
 export async function logoutUser() {
     await deleteSession();
-    revalidatePath('/');
+    redirect('/login');
 }
 
 

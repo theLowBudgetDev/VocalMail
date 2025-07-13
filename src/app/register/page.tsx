@@ -3,8 +3,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useFormState } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Loader2, UserPlus } from "lucide-react";
@@ -24,8 +23,6 @@ const registerSchema = z.object({
 });
 
 export default function RegisterPage() {
-  const [isLoading, setIsLoading] = React.useState(false);
-  const router = useRouter();
   const { toast } = useToast();
   const { play } = useTextToSpeech();
 
@@ -33,29 +30,15 @@ export default function RegisterPage() {
     resolver: zodResolver(registerSchema),
     defaultValues: { name: "", email: "", password: "" },
   });
+  
+  const { isSubmitting } = useFormState({ control: form.control });
 
   const onSubmit = async (data: z.infer<typeof registerSchema>) => {
-    setIsLoading(true);
-    try {
-      const result = await registerUser(data);
-      if (result.success) {
-        toast({ title: 'Registration Successful', description: `Welcome, ${data.name}! Please log in.` });
-        play("Registration successful. Please log in.", () => {
-            router.push('/login');
-            router.refresh();
-        });
-      } else {
+    const result = await registerUser(data);
+    if (result?.error) {
         form.setError("root", { message: result.error });
         toast({ variant: 'destructive', title: 'Registration Failed', description: result.error });
         play(`Registration failed. ${result.error}`);
-      }
-    } catch (err: any) {
-      const errorMessage = err.message || "An unexpected error occurred.";
-      form.setError("root", { message: errorMessage });
-      toast({ variant: 'destructive', title: 'Registration Failed', description: errorMessage });
-      play(`Registration failed. ${errorMessage}`);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -111,8 +94,8 @@ export default function RegisterPage() {
               {form.formState.errors.root && (
                 <p className="text-sm font-medium text-destructive">{form.formState.errors.root.message}</p>
               )}
-              <Button type="submit" disabled={isLoading} className="w-full" size="lg">
-                {isLoading ? (
+              <Button type="submit" disabled={isSubmitting} className="w-full" size="lg">
+                {isSubmitting ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <UserPlus className="mr-2 h-4 w-4" />

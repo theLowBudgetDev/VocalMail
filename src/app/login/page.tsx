@@ -3,11 +3,11 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useSearchParams, useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useSearchParams } from "next/navigation";
+import { useForm, useFormState } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, Mic, LogIn } from "lucide-react";
+import { Loader2, LogIn } from "lucide-react";
 
 import { loginUser } from "@/lib/actions";
 import { useToast } from "@/hooks/use-toast";
@@ -23,8 +23,6 @@ const loginSchema = z.object({
 });
 
 export default function LoginPage() {
-  const [isLoading, setIsLoading] = React.useState(false);
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const { play } = useTextToSpeech();
@@ -33,40 +31,30 @@ export default function LoginPage() {
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
   });
+  
+  const { isSubmitting } = useFormState({ control: form.control });
 
   React.useEffect(() => {
     const error = searchParams.get('error');
+    const message = searchParams.get('message');
     if (error) {
       toast({ variant: 'destructive', title: 'Login Failed', description: error });
       play(`Login failed. ${error}`);
+    }
+     if (message) {
+      toast({ title: 'Registration Complete', description: message });
+      play(message);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   const onSubmit = async (data: z.infer<typeof loginSchema>) => {
-    setIsLoading(true);
-    try {
       const result = await loginUser(data);
-      if (result.success) {
-        toast({ title: 'Login Successful', description: `Welcome back!` });
-        play("Login successful.", () => {
-            router.push('/inbox');
-            // We refresh the router to ensure the new session is picked up by the layout
-            router.refresh(); 
-        });
-      } else {
+      if (result?.error) {
         form.setError("root", { message: result.error });
         toast({ variant: 'destructive', title: 'Login Failed', description: result.error });
         play(`Login failed. ${result.error}`);
       }
-    } catch (err: any) {
-      const errorMessage = err.message || "An unexpected error occurred.";
-      form.setError("root", { message: errorMessage });
-      toast({ variant: 'destructive', title: 'Login Failed', description: errorMessage });
-      play(`Login failed. ${errorMessage}`);
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   return (
@@ -108,8 +96,8 @@ export default function LoginPage() {
               {form.formState.errors.root && (
                 <p className="text-sm font-medium text-destructive">{form.formState.errors.root.message}</p>
               )}
-              <Button type="submit" disabled={isLoading} className="w-full" size="lg">
-                {isLoading ? (
+              <Button type="submit" disabled={isSubmitting} className="w-full" size="lg">
+                {isSubmitting ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <LogIn className="mr-2 h-4 w-4" />

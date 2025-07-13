@@ -17,12 +17,10 @@ import { useCurrentUser } from "@/hooks/use-current-user"
 import { cn } from "@/lib/utils";
 import { Label } from "./ui/label";
 import { logoutUser } from "@/lib/actions";
-import { useRouter } from "next/navigation";
 
 export function UserNav() {
   const { currentUser, isLoading } = useCurrentUser();
   const { theme, setTheme } = useTheme();
-  const router = useRouter();
 
   if (isLoading) {
     return <Loader2 className="h-6 w-6 animate-spin mx-auto" />
@@ -32,8 +30,6 @@ export function UserNav() {
 
   const handleLogout = async () => {
     await logoutUser();
-    router.push('/login');
-    router.refresh();
   }
 
   return (
