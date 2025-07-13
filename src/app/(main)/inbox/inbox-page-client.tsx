@@ -274,10 +274,10 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
     <TooltipProvider>
       <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 h-full">
         <div className={cn(
-            "col-span-1 xl:col-span-1 border-r bg-background h-full flex flex-col",
+            "col-span-1 xl:col-span-1 border-r bg-background flex flex-col",
             isMobile && selectedEmailId && "hidden"
           )}>
-           <div className="flex items-center p-2 h-12 border-b">
+           <div className="flex items-center p-2 h-12 border-b shrink-0">
             <h2 className="text-lg font-bold px-2">Inbox</h2>
           </div>
           <ScrollArea className="flex-1">
@@ -321,12 +321,12 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
           </ScrollArea>
         </div>
         <div className={cn(
-            "md:col-span-2 xl:col-span-3 h-full bg-background",
+            "md:col-span-2 xl:col-span-3 bg-background",
             isMobile && !selectedEmailId ? "hidden" : "flex flex-col"
           )}>
           {selectedEmail ? (
             <>
-              <div className="p-2 h-12 border-b flex justify-between items-center gap-4">
+              <div className="p-2 h-12 border-b flex justify-between items-center gap-4 shrink-0">
                  <div className="flex items-center gap-2">
                     {isMobile && (
                         <Button variant="ghost" size="icon" onClick={() => { stop(); setSelectedEmailId(null); setSuggestions([]); }}>
@@ -388,7 +388,7 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
                 </div>
               </ScrollArea>
                {(isGeneratingSuggestions || suggestions.length > 0) && (
-                <div className="p-4 border-t">
+                <div className="p-4 border-t shrink-0">
                   <h4 className="text-sm font-semibold mb-2 text-muted-foreground">Smart Replies</h4>
                   {isGeneratingSuggestions ? (
                      <div className="flex items-center gap-2 text-muted-foreground text-sm">

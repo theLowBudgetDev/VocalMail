@@ -176,10 +176,10 @@ export default function ArchivePageClient({ initialEmails, users }: ArchivePageC
     <TooltipProvider>
       <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 h-full">
         <div className={cn(
-            "col-span-1 xl:col-span-1 border-r bg-background h-full flex flex-col",
+            "col-span-1 xl:col-span-1 border-r bg-background flex flex-col",
             isMobile && selectedEmailId && "hidden"
           )}>
-          <div className="flex items-center p-2 h-12 border-b">
+          <div className="flex items-center p-2 h-12 border-b shrink-0">
             <h2 className="text-lg font-bold px-2">Archive</h2>
           </div>
           <ScrollArea className="flex-1">
@@ -223,12 +223,12 @@ export default function ArchivePageClient({ initialEmails, users }: ArchivePageC
           </ScrollArea>
         </div>
         <div className={cn(
-            "md:col-span-2 xl:col-span-3 h-full bg-background",
+            "md:col-span-2 xl:col-span-3 bg-background",
             isMobile && !selectedEmailId ? "hidden" : "flex flex-col"
           )}>
           {selectedEmail ? (
             <>
-              <div className="p-2 h-12 border-b flex justify-between items-center gap-4">
+              <div className="p-2 h-12 border-b flex justify-between items-center gap-4 shrink-0">
                  <div className="flex items-center gap-2">
                     {isMobile && (
                         <Button variant="ghost" size="icon" onClick={() => { stop(); setSelectedEmailId(null); }}>

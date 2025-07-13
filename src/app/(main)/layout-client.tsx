@@ -109,7 +109,7 @@ export default function VocalMailLayoutClient({
           </SidebarFooter>
         </Sidebar>
         <SidebarInset>
-          <div className="flex-1 overflow-y-hidden bg-background">
+          <div className="flex-1 bg-background h-screen overflow-hidden">
             {children}
           </div>
           <VoiceCommander />
