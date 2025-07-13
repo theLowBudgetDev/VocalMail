@@ -23,6 +23,8 @@ export async function loginUser(data: { email: string; password?: string }) {
             if (!isPasswordValid) {
                 return { success: false, error: 'Invalid email or password.' };
             }
+        } else {
+            return { success: false, error: 'Password is required.' };
         }
 
         await createSession(user.id);
@@ -357,3 +359,5 @@ export async function sendEmail(senderId: number, to: string, subject: string, b
     revalidatePath('/sent');
     revalidatePath('/inbox'); // Also revalidate inbox for the recipient
 }
+
+    
