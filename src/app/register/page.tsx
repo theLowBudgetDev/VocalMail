@@ -42,6 +42,7 @@ export default function RegisterPage() {
         toast({ title: 'Registration Successful', description: `Welcome, ${data.name}! Please log in.` });
         play("Registration successful. Please log in.", () => {
             router.push('/login');
+            router.refresh();
         });
       } else {
         form.setError("root", { message: result.error });
