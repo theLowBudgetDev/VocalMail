@@ -51,7 +51,8 @@ export default function LoginPage() {
         toast({ title: 'Login Successful', description: `Welcome back!` });
         play("Login successful.", () => {
             router.push('/inbox');
-            router.refresh();
+            // We refresh the router to ensure the new session is picked up by the layout
+            router.refresh(); 
         });
       } else {
         form.setError("root", { message: result.error });
