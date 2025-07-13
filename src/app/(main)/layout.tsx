@@ -4,6 +4,7 @@ import VocalMailLayoutClient from "./layout-client";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
+import { SidebarProvider } from "@/components/ui/sidebar";
 
 function LoadingFallback() {
     return (
@@ -32,15 +33,14 @@ async function VocalMailLayoutWithData({ children }: { children: React.ReactNode
   const currentUser = await getLoggedInUser();
 
   if (!currentUser) {
-    // This should redirect to a login page in a real app.
-    // For this demo, we can show an error or redirect to a simple page.
-    // But since getLoggedInUser is hardcoded, this path is unlikely.
     redirect("/");
   }
 
   return (
-    <VocalMailLayoutClient currentUser={currentUser}>
-      {children}
-    </VocalMailLayoutClient>
+    <SidebarProvider defaultOpen={true}>
+      <VocalMailLayoutClient currentUser={currentUser}>
+        {children}
+      </VocalMailLayoutClient>
+    </SidebarProvider>
   );
 }

@@ -10,9 +10,10 @@ import {
   Contact,
   Inbox,
   Send,
-  FilePenLine,
+  PenSquare,
   Search,
   FileText,
+  Menu,
 } from "lucide-react";
 
 import {
@@ -34,6 +35,7 @@ import { CurrentUserProvider } from "@/hooks/use-current-user";
 import type { User } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Button } from "@/components/ui/button";
 
 const navItems = [
   { href: "/inbox", label: "Inbox", icon: Inbox },
@@ -46,7 +48,7 @@ const navItems = [
 
 function MobileHeader() {
     const isMobile = useIsMobile();
-    const { state } = useSidebar();
+    const { state, setOpenMobile } = useSidebar();
 
     if (!isMobile) return null;
 
@@ -66,7 +68,10 @@ function MobileHeader() {
                 </svg>
                 <span className="font-semibold text-lg">VocalMail</span>
             </div>
-            <SidebarTrigger />
+             <Button variant="ghost" size="icon" onClick={() => setOpenMobile(true)}>
+                <Menu />
+                <span className="sr-only">Open Menu</span>
+            </Button>
         </div>
     )
 }
@@ -80,11 +85,15 @@ export default function VocalMailLayoutClient({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { setOpenMobile } = useSidebar();
+
+  const handleLinkClick = () => {
+    setOpenMobile(false);
+  }
 
   return (
     <CurrentUserProvider initialUser={currentUser}>
-      <SidebarProvider defaultOpen={true}>
-        <Sidebar collapsible="icon">
+        <Sidebar collapsible="icon" side="right">
           <SidebarHeader className="border-b h-12">
             <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
               <div className="w-8 h-8 flex items-center justify-center">
@@ -109,9 +118,10 @@ export default function VocalMailLayoutClient({
                   size="default"
                   variant="default"
                   isActive={pathname === '/compose'}
+                  onClick={handleLinkClick}
                 >
                   <Link href="/compose">
-                    <FilePenLine />
+                    <PenSquare />
                     <span className="group-data-[collapsible=icon]:hidden">Compose</span>
                   </Link>
                 </SidebarMenuButton>
@@ -124,6 +134,7 @@ export default function VocalMailLayoutClient({
                     size="default"
                     tooltip={item.label}
                     variant="default"
+                    onClick={handleLinkClick}
                   >
                     <Link href={item.href}>
                       <item.icon />
@@ -140,12 +151,11 @@ export default function VocalMailLayoutClient({
         </Sidebar>
         <SidebarInset>
            <MobileHeader />
-           <div className="flex-1 overflow-auto">
+           <div className="flex-1 overflow-y-auto">
              {children}
            </div>
           <VoiceCommander />
         </SidebarInset>
-      </SidebarProvider>
     </CurrentUserProvider>
   );
 }
