@@ -40,6 +40,7 @@ export default function ArchivePageClient({ initialEmails, users }: ArchivePageC
   const { isPlaying, play, stop } = useTextToSpeech();
   
   const selectedEmail = React.useMemo(() => {
+    if (!selectedEmailId) return null;
     return archivedEmails.find((email) => email.id === selectedEmailId);
   }, [selectedEmailId, archivedEmails]);
 
@@ -174,9 +175,9 @@ export default function ArchivePageClient({ initialEmails, users }: ArchivePageC
 
   return (
     <TooltipProvider>
-      <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4">
+      <div className={cn("h-full flex", isMobile && selectedEmailId ? "flex-col" : "flex-row")}>
         <div className={cn(
-            "col-span-1 xl:col-span-1 border-r bg-background flex flex-col",
+            "w-full md:w-[320px] lg:w-[380px] shrink-0 border-r bg-background flex flex-col",
             isMobile && selectedEmailId && "hidden"
           )}>
           <div className="flex items-center p-2 h-12 border-b shrink-0">
@@ -223,7 +224,7 @@ export default function ArchivePageClient({ initialEmails, users }: ArchivePageC
           </ScrollArea>
         </div>
         <div className={cn(
-            "md:col-span-2 xl:col-span-3 bg-background flex flex-col",
+            "flex-1 bg-background flex flex-col",
             isMobile && !selectedEmailId ? "hidden" : "flex flex-col"
           )}>
           {selectedEmail ? (
@@ -247,7 +248,7 @@ export default function ArchivePageClient({ initialEmails, users }: ArchivePageC
                     </Tooltip>
                  </div>
               </div>
-              <div className="flex-1 p-6 overflow-hidden">
+              <div className="flex-1 p-6 overflow-auto">
                  <div className="flex items-start justify-between gap-4">
                       <div className="flex items-start gap-4">
                            {senderOfSelectedEmail && (
