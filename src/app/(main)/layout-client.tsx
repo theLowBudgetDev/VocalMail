@@ -98,7 +98,7 @@ function SidebarContentForSheet({ onLinkClick }: { onLinkClick: () => void }) {
                 </div>
               </SidebarHeader>
               <SidebarContent className="p-0 flex-1">
-                <SidebarMenu>
+                <SidebarMenu className="mt-2">
                   <SidebarMenuItem className="px-2">
                     <SidebarMenuButton
                       asChild
@@ -150,7 +150,7 @@ export default function VocalMailLayoutClient({
 
   return (
     <CurrentUserProvider initialUser={currentUser}>
-      <SidebarProvider defaultOpen={true}>
+      <SidebarProvider defaultOpen={true} collapsible="icon">
         <div className="flex h-screen w-screen overflow-hidden">
           <VocalMailMainContent>
               <MobileHeader />

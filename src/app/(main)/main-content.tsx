@@ -64,7 +64,7 @@ export default function VocalMailMainContent({
           </div>
         </SidebarHeader>
         <SidebarContent>
-          <SidebarMenu>
+          <SidebarMenu className="mt-2">
             <SidebarMenuItem className="px-2">
               <SidebarMenuButton
                 asChild
