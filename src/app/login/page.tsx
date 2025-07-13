@@ -54,6 +54,11 @@ export default function LoginPage() {
         form.setError("root", { message: result.error });
         toast({ variant: 'destructive', title: 'Login Failed', description: result.error });
         play(`Login failed. ${result.error}`);
+      } else if (result?.success) {
+        toast({ title: 'Login Successful', description: "Redirecting you to your inbox..." });
+        play('Login Successful.', () => {
+            window.location.href = '/inbox';
+        });
       }
   };
 

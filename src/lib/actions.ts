@@ -13,20 +13,23 @@ const prisma = new PrismaClient();
 // --- AUTH ACTIONS ---
 
 export async function loginUser(data: { email: string; password?: string }) {
-    const user = await prisma.user.findUnique({ where: { email: data.email } });
-    if (!user || !user.password) {
-        return { success: false, error: 'Invalid email or password.' };
-    }
-    if (data.password) {
-        const isPasswordValid = await bcrypt.compare(data.password, user.password);
-        if (!isPasswordValid) {
+    try {
+        const user = await prisma.user.findUnique({ where: { email: data.email } });
+        if (!user || !user.password) {
             return { success: false, error: 'Invalid email or password.' };
         }
-    }
+        if (data.password) {
+            const isPasswordValid = await bcrypt.compare(data.password, user.password);
+            if (!isPasswordValid) {
+                return { success: false, error: 'Invalid email or password.' };
+            }
+        }
 
-    await createSession(user.id);
-    // Redirect must be called outside of a try/catch block
-    redirect('/inbox');
+        await createSession(user.id);
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: 'An unexpected server error occurred.' };
+    }
 }
 
 export async function registerUser(data: { name: string; email: string; password?: string }) {
@@ -49,12 +52,11 @@ export async function registerUser(data: { name: string; email: string; password
                 avatar: `https://placehold.co/40x40.png`,
             },
         });
+        return { success: true };
     } catch (error) {
+        console.error(error);
         return { success: false, error: 'An unexpected error occurred during registration.' };
     }
-    
-    // Redirect after successful creation
-    redirect('/login?message=Registration successful. Please log in.');
 }
 
 

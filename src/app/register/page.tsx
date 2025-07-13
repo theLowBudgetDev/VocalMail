@@ -39,6 +39,11 @@ export default function RegisterPage() {
         form.setError("root", { message: result.error });
         toast({ variant: 'destructive', title: 'Registration Failed', description: result.error });
         play(`Registration failed. ${result.error}`);
+    } else if (result?.success) {
+        toast({ title: 'Registration Successful', description: 'Please log in to continue.'});
+        play('Registration successful. Please log in.', () => {
+             window.location.href = '/login';
+        });
     }
   };
 
