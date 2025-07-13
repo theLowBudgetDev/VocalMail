@@ -159,7 +159,7 @@ export default function SentPageClient({ initialEmails, users }: SentPageClientP
 
   return (
     <TooltipProvider>
-      <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 h-full">
+      <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4">
         <div className={cn(
             "col-span-1 xl:col-span-1 border-r bg-background flex flex-col",
             isMobile && selectedEmailId && "hidden"
@@ -235,32 +235,30 @@ export default function SentPageClient({ initialEmails, users }: SentPageClientP
                     </Tooltip>
                  </div>
               </div>
-              <ScrollArea className="flex-1">
-                <div className="p-6">
-                   <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-start gap-4">
-                            <Avatar className="h-10 w-10">
-                                <AvatarImage src={currentUser?.avatar} alt={currentUser?.name || ''} data-ai-hint="avatar person" />
-                                <AvatarFallback>{currentUser?.name.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <div className="grid gap-1">
-                                <p className="font-semibold">{currentUser?.name}</p>
-                                <p className="text-sm text-muted-foreground">
-                                  To: {selectedEmail.recipients?.map(r => r.name).join(', ')}
-                                </p>
-                            </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs text-muted-foreground whitespace-nowrap">
-                              {format(new Date(selectedEmail.sentAt), "P, p")}
-                          </p>
-                        </div>
-                   </div>
-                   <h1 className="text-xl font-bold mt-4">{selectedEmail.subject}</h1>
-                  <Separator className="my-4" />
-                  <div className="text-sm leading-relaxed whitespace-pre-wrap">{selectedEmail.body}</div>
-                </div>
-              </ScrollArea>
+              <div className="flex-1 p-6 overflow-y-auto">
+                 <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-4">
+                          <Avatar className="h-10 w-10">
+                              <AvatarImage src={currentUser?.avatar} alt={currentUser?.name || ''} data-ai-hint="avatar person" />
+                              <AvatarFallback>{currentUser?.name.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          <div className="grid gap-1">
+                              <p className="font-semibold">{currentUser?.name}</p>
+                              <p className="text-sm text-muted-foreground">
+                                To: {selectedEmail.recipients?.map(r => r.name).join(', ')}
+                              </p>
+                          </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground whitespace-nowrap">
+                            {format(new Date(selectedEmail.sentAt), "P, p")}
+                        </p>
+                      </div>
+                 </div>
+                 <h1 className="text-xl font-bold mt-4">{selectedEmail.subject}</h1>
+                <Separator className="my-4" />
+                <div className="text-sm leading-relaxed whitespace-pre-wrap">{selectedEmail.body}</div>
+              </div>
             </>
           ) : (
             <div className={cn("flex items-center justify-center h-full text-muted-foreground", isMobile && "hidden")}>

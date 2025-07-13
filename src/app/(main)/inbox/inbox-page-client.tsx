@@ -272,7 +272,7 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
 
   return (
     <TooltipProvider>
-      <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 h-full">
+      <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4">
         <div className={cn(
             "col-span-1 xl:col-span-1 border-r bg-background flex flex-col",
             isMobile && selectedEmailId && "hidden"
@@ -359,34 +359,32 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
                     </Tooltip>
                  </div>
               </div>
-              <ScrollArea className="flex-1">
-                <div className="p-6">
-                   <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-start gap-4">
-                             {senderOfSelectedEmail && (
-                                <Avatar className="h-10 w-10">
-                                    <AvatarImage src={senderOfSelectedEmail.avatar} alt={senderOfSelectedEmail.name} data-ai-hint="avatar person" />
-                                    <AvatarFallback>{senderOfSelectedEmail.name.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                            )}
-                            <div className="grid gap-1">
-                                <p className="font-semibold">{senderOfSelectedEmail?.name}</p>
-                                <p className="text-sm text-muted-foreground">
-                                  To: {currentUser?.name} &lt;{currentUser?.email}&gt;
-                                </p>
-                            </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs text-muted-foreground whitespace-nowrap">
-                              {format(new Date(selectedEmail.sentAt), "P, p")}
-                          </p>
-                        </div>
-                   </div>
-                   <h1 className="text-xl font-bold mt-4">{selectedEmail.subject}</h1>
-                  <Separator className="my-4" />
-                  <div className="text-sm leading-relaxed whitespace-pre-wrap">{selectedEmail.body}</div>
-                </div>
-              </ScrollArea>
+              <div className="flex-1 p-6 overflow-y-auto">
+                 <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-4">
+                           {senderOfSelectedEmail && (
+                              <Avatar className="h-10 w-10">
+                                  <AvatarImage src={senderOfSelectedEmail.avatar} alt={senderOfSelectedEmail.name} data-ai-hint="avatar person" />
+                                  <AvatarFallback>{senderOfSelectedEmail.name.charAt(0)}</AvatarFallback>
+                              </Avatar>
+                          )}
+                          <div className="grid gap-1">
+                              <p className="font-semibold">{senderOfSelectedEmail?.name}</p>
+                              <p className="text-sm text-muted-foreground">
+                                To: {currentUser?.name} &lt;{currentUser?.email}&gt;
+                              </p>
+                          </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground whitespace-nowrap">
+                            {format(new Date(selectedEmail.sentAt), "P, p")}
+                        </p>
+                      </div>
+                 </div>
+                 <h1 className="text-xl font-bold mt-4">{selectedEmail.subject}</h1>
+                <Separator className="my-4" />
+                <div className="text-sm leading-relaxed whitespace-pre-wrap">{selectedEmail.body}</div>
+              </div>
                {(isGeneratingSuggestions || suggestions.length > 0) && (
                 <div className="p-4 border-t shrink-0">
                   <h4 className="text-sm font-semibold mb-2 text-muted-foreground">Smart Replies</h4>
