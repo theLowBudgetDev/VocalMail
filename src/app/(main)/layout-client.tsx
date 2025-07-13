@@ -29,6 +29,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { VoiceCommander } from "@/components/voice-commander";
 import { UserNav } from "@/components/user-nav";
 import { CurrentUserProvider } from "@/hooks/use-current-user";
@@ -48,15 +49,12 @@ const navItems = [
 
 function MobileHeader() {
     const isMobile = useIsMobile();
-    const { state, setOpenMobile } = useSidebar();
+    const [isSheetOpen, setIsSheetOpen] = React.useState(false);
 
     if (!isMobile) return null;
 
     return (
-        <div className={cn(
-            "md:hidden flex items-center justify-between p-2 border-b h-12 shrink-0 bg-background",
-            state === "expanded" && "hidden" 
-        )}>
+        <div className="md:hidden flex items-center justify-between p-2 border-b h-12 shrink-0 bg-background">
             <div className="flex items-center gap-2">
                  <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -68,34 +66,27 @@ function MobileHeader() {
                 </svg>
                 <span className="font-semibold text-lg">VocalMail</span>
             </div>
-             <Button variant="ghost" size="icon" onClick={() => setOpenMobile(true)}>
-                <Menu />
-                <span className="sr-only">Open Menu</span>
-            </Button>
+            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Menu />
+                  <span className="sr-only">Open Menu</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="p-0 w-64">
+                 <SidebarContentForSheet onLinkClick={() => setIsSheetOpen(false)} />
+              </SheetContent>
+            </Sheet>
         </div>
     )
 }
 
-
-export default function VocalMailLayoutClient({
-  currentUser,
-  children,
-}: {
-  currentUser: User;
-  children: React.ReactNode;
-}) {
-  const pathname = usePathname();
-  const { setOpenMobile } = useSidebar();
-
-  const handleLinkClick = () => {
-    setOpenMobile(false);
-  }
-
-  return (
-    <CurrentUserProvider initialUser={currentUser}>
-        <Sidebar>
-          <SidebarHeader className="border-b h-12">
-            <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
+function SidebarContentForSheet({ onLinkClick }: { onLinkClick: () => void }) {
+    const pathname = usePathname();
+    return (
+        <>
+        <SidebarHeader className="border-b h-12">
+            <div className="flex items-center gap-2">
               <div className="w-8 h-8 flex items-center justify-center">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -108,9 +99,8 @@ export default function VocalMailLayoutClient({
               </div>
               <span className={cn("font-semibold text-lg")}>VocalMail</span>
             </div>
-            <SidebarTrigger />
           </SidebarHeader>
-          <SidebarContent>
+          <SidebarContent className="p-0">
             <SidebarMenu>
               <SidebarMenuItem className="px-2">
                 <SidebarMenuButton
@@ -118,11 +108,11 @@ export default function VocalMailLayoutClient({
                   size="default"
                   variant="default"
                   isActive={pathname === '/compose'}
-                  onClick={handleLinkClick}
+                  onClick={onLinkClick}
                 >
                   <Link href="/compose">
                     <PenSquare />
-                    <span className="group-data-[collapsible=icon]:hidden">Compose</span>
+                    <span>Compose</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -134,11 +124,11 @@ export default function VocalMailLayoutClient({
                     size="default"
                     tooltip={item.label}
                     variant="default"
-                    onClick={handleLinkClick}
+                    onClick={onLinkClick}
                   >
                     <Link href={item.href}>
                       <item.icon />
-                      <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
+                      <span>{item.label}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -148,14 +138,85 @@ export default function VocalMailLayoutClient({
           <SidebarFooter className="p-2 mt-auto">
             <UserNav />
           </SidebarFooter>
-        </Sidebar>
-        <SidebarInset>
-           <MobileHeader />
-           <div className="flex-1 overflow-y-auto">
-             {children}
-           </div>
-          <VoiceCommander />
-        </SidebarInset>
+        </>
+    );
+}
+
+
+export default function VocalMailLayoutClient({
+  currentUser,
+  children,
+}: {
+  currentUser: User;
+  children: React.ReactNode;
+}) {
+  const pathname = usePathname();
+
+  return (
+    <CurrentUserProvider initialUser={currentUser}>
+        <div className="flex h-screen w-screen">
+            <Sidebar className="hidden md:flex md:flex-col">
+              <SidebarHeader className="border-b h-12">
+                <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      className="h-6 w-6 text-primary"
+                      fill="currentColor"
+                    >
+                      <path d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6zm-2 0l-8 5-8-5h16zm0 12H4V8l8 5 8-5v10z" />
+                    </svg>
+                  </div>
+                  <span className={cn("font-semibold text-lg")}>VocalMail</span>
+                </div>
+                <SidebarTrigger />
+              </SidebarHeader>
+              <SidebarContent>
+                <SidebarMenu>
+                  <SidebarMenuItem className="px-2">
+                    <SidebarMenuButton
+                      asChild
+                      size="default"
+                      variant="default"
+                      isActive={pathname === '/compose'}
+                    >
+                      <Link href="/compose">
+                        <PenSquare />
+                        <span className="group-data-[collapsible=icon]:hidden">Compose</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  {navItems.map((item) => (
+                    <SidebarMenuItem key={item.href + item.label} className="px-2">
+                      <SidebarMenuButton
+                        asChild
+                        isActive={pathname === item.href}
+                        size="default"
+                        tooltip={item.label}
+                        variant="default"
+                      >
+                        <Link href={item.href}>
+                          <item.icon />
+                          <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarContent>
+              <SidebarFooter className="p-2 mt-auto">
+                <UserNav />
+              </SidebarFooter>
+            </Sidebar>
+            <div className="flex flex-col flex-1">
+               <MobileHeader />
+               <div className="flex-1 overflow-y-auto">
+                 {children}
+               </div>
+              <VoiceCommander />
+            </div>
+        </div>
     </CurrentUserProvider>
   );
 }
