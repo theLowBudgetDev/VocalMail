@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { addContact, deleteContact } from "@/lib/actions";
 import type { Contact } from "@/lib/data";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Search, X, Mail, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -219,7 +219,8 @@ export default function ContactsPageClient({ initialContacts }: ContactsPageClie
                     {filteredContacts.map((contact) => (
                         <Card key={contact.id} className="p-4 flex flex-col items-center text-center shadow-md hover:shadow-lg transition-shadow relative group">
                             <Avatar className="h-20 w-20 mb-4">
-                                <AvatarFallback className="text-3xl bg-primary text-primary-foreground">{contact.avatar}</AvatarFallback>
+                                <AvatarImage src={contact.avatar || ''} alt={contact.name} data-ai-hint="avatar person" />
+                                <AvatarFallback className="text-3xl bg-primary text-primary-foreground">{contact.name.charAt(0)}</AvatarFallback>
                             </Avatar>
                             <p className="font-semibold text-lg">{contact.name}</p>
                             <p className="text-sm text-muted-foreground">{contact.email}</p>

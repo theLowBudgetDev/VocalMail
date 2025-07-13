@@ -1,25 +1,22 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "sqlite"
-  url      = "file:./dev.db"
+  url      = "file:./vocalmail.db"
 }
 
 model User {
   id        Int       @id @default(autoincrement())
   email     String    @unique
   name      String
-  password  String?
+  password  String
   avatar    String?
-  sentEmails Email[]   @relation("SentEmails")
+  sentEmails Email[]  @relation("SentEmails")
   receivedEmails EmailRecipient[]
   contacts  Contact[] @relation("UserContacts")
   ownedContacts Contact[] @relation("OwnedContacts")
@@ -35,14 +32,14 @@ model Contact {
 }
 
 model Email {
-  id        Int      @id @default(autoincrement())
-  senderId  Int
-  sender    User     @relation("SentEmails", fields: [senderId], references: [id])
-  subject   String
-  body      String
-  sentAt    DateTime @default(now())
-  recipients EmailRecipient[]
-  senderStatus String @default("sent") // e.g., 'sent', 'deleted'
+  id            Int      @id @default(autoincrement())
+  senderId      Int
+  subject       String
+  body          String
+  sentAt        DateTime @default(now())
+  senderStatus  String   @default("sent") // e.g., 'sent', 'deleted'
+  sender        User     @relation("SentEmails", fields: [senderId], references: [id])
+  recipients    EmailRecipient[]
 }
 
 model EmailRecipient {
@@ -51,14 +48,14 @@ model EmailRecipient {
   read        Boolean  @default(false)
   status      String   @default("inbox") // e.g., 'inbox', 'archive', 'deleted'
   email       Email    @relation(fields: [emailId], references: [id], onDelete: Cascade)
-  recipient   User     @relation(fields: [recipientId], references: [id])
+  recipient   User     @relation(fields: [recipientId], references: [id], onDelete: Cascade)
 
   @@id([emailId, recipientId])
 }
 
 model AudioCache {
-    id          Int @id @default(autoincrement())
-    text        String @unique
+    id           Int      @id @default(autoincrement())
+    text         String   @unique
     audioDataUri String
-    createdAt   DateTime @default(now())
+    createdAt    DateTime @default(now())
 }

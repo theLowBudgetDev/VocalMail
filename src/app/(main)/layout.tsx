@@ -4,7 +4,6 @@ import VocalMailLayoutClient from "./layout-client";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
-import { SidebarProvider } from "@/components/ui/sidebar";
 
 function LoadingFallback() {
     return (
@@ -37,10 +36,8 @@ async function VocalMailLayoutWithData({ children }: { children: React.ReactNode
   }
 
   return (
-    <SidebarProvider defaultOpen={true}>
       <VocalMailLayoutClient currentUser={currentUser}>
         {children}
       </VocalMailLayoutClient>
-    </SidebarProvider>
   );
 }

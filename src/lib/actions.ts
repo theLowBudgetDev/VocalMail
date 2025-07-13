@@ -1,17 +1,74 @@
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
 import { PrismaClient } from '@prisma/client';
 import { cache } from 'react';
+import { getSession, createSession, deleteSession } from '@/lib/session';
+import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
 // --- AUTH ACTIONS ---
-export const getLoggedInUser = cache(async () => {
-    // For the demo, we'll consistently retrieve the first user, Charlie Davis.
-    return prisma.user.findFirst({
-        where: { email: 'charlie.davis@example.com' },
+
+export async function loginUser(data: { email: string; password?: string }) {
+    const user = await prisma.user.findUnique({ where: { email: data.email } });
+    if (!user || !user.password) {
+        return { success: false, error: 'Invalid email or password.' };
+    }
+    if (data.password) {
+        const isPasswordValid = await bcrypt.compare(data.password, user.password);
+        if (!isPasswordValid) {
+            return { success: false, error: 'Invalid email or password.' };
+        }
+    }
+
+    await createSession(user.id);
+    return { success: true };
+}
+
+export async function registerUser(data: { name: string; email: string; password?: string }) {
+    const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
+    if (existingUser) {
+        return { success: false, error: 'An account with this email already exists.' };
+    }
+
+    const hashedPassword = data.password ? await bcrypt.hash(data.password, 10) : null;
+    if (!hashedPassword) {
+        return { success: false, error: 'Password is required.' };
+    }
+
+    await prisma.user.create({
+        data: {
+            name: data.name,
+            email: data.email,
+            password: hashedPassword,
+            avatar: `https://placehold.co/40x40.png`,
+        },
     });
+
+    return { success: true };
+}
+
+export async function logoutUser() {
+    await deleteSession();
+    revalidatePath('/');
+}
+
+
+export const getLoggedInUser = cache(async () => {
+    const session = await getSession();
+    if (!session?.userId) {
+        return null;
+    }
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id: session.userId },
+        });
+        return user;
+    } catch (error) {
+        return null;
+    }
 });
 
 // --- DATA READ ACTIONS ---
@@ -22,6 +79,17 @@ export const getUsers = cache(async () => {
 
 function toEmailViewModel(dbEmail: any, userId: number) {
      const isSender = dbEmail.senderId === userId;
+     const recipientInfo = dbEmail.recipients.find((r: any) => r.recipientId === userId);
+     
+     let status = 'inbox';
+     if (isSender) {
+        status = dbEmail.senderStatus;
+     } else if (recipientInfo) {
+        status = recipientInfo.status;
+     }
+
+     if (status === 'deleted') return null;
+
      if (isSender) {
         return {
             id: dbEmail.id,
@@ -38,7 +106,6 @@ function toEmailViewModel(dbEmail: any, userId: number) {
             })),
         };
      } else {
-        const recipientInfo = dbEmail.recipients.find((r: any) => r.recipientId === userId);
          return {
             id: dbEmail.id,
             senderId: dbEmail.senderId,
@@ -77,7 +144,7 @@ export async function getInboxEmails(userId: number) {
         },
     });
 
-    return userEmails.map(email => toEmailViewModel(email, userId));
+    return userEmails.map(email => toEmailViewModel(email, userId)).filter(Boolean);
 }
 
 export async function getArchivedEmails(userId: number) {
@@ -102,7 +169,7 @@ export async function getArchivedEmails(userId: number) {
             sentAt: 'desc',
         },
     });
-     return userEmails.map(email => toEmailViewModel(email, userId));
+     return userEmails.map(email => toEmailViewModel(email, userId)).filter(Boolean);
 }
 
 export async function getSentEmails(userId: number) {
@@ -123,7 +190,7 @@ export async function getSentEmails(userId: number) {
             sentAt: 'desc',
         },
     });
-     return sentEmails.map(email => toEmailViewModel(email, userId));
+     return sentEmails.map(email => toEmailViewModel(email, userId)).filter(Boolean);
 }
 
 export async function searchEmails(userId: number, searchTerm: string) {
@@ -158,7 +225,7 @@ export async function searchEmails(userId: number, searchTerm: string) {
         orderBy: { sentAt: 'desc' },
     });
 
-     return results.map(email => toEmailViewModel(email, userId));
+     return results.map(email => toEmailViewModel(email, userId)).filter(Boolean);
 }
 
 
@@ -169,7 +236,7 @@ export async function getContacts(userId: number) {
         orderBy: { contactUser: { name: 'asc' } },
     });
 
-    return contacts.map(c => c.contactUser);
+    return contacts.map(c => ({...c.contactUser, avatar: c.contactUser.avatar || ''}));
 }
 
 // --- DATA WRITE ACTIONS ---
@@ -248,9 +315,9 @@ export async function addContact(ownerId: number, contactEmail: string) {
     revalidatePath('/contacts');
 }
 
-export async function deleteContact(ownerId: number, contactId: number) {
+export async function deleteContact(ownerId: number, contactUserId: number) {
     await prisma.contact.delete({
-        where: { ownerId_contactUserId: { ownerId, contactUserId: contactId } }
+        where: { ownerId_contactUserId: { ownerId, contactUserId } }
     });
     revalidatePath('/contacts');
 }
@@ -261,14 +328,17 @@ export async function sendEmail(senderId: number, to: string, subject: string, b
         throw new Error(`Recipient email "${to}" not found.`);
     }
 
-    const createdEmail = await prisma.email.create({
+    await prisma.email.create({
         data: {
             senderId,
             subject,
             body,
+            senderStatus: 'sent',
             recipients: {
                 create: {
                     recipientId: recipient.id,
+                    status: 'inbox',
+                    read: false,
                 },
             },
         },
