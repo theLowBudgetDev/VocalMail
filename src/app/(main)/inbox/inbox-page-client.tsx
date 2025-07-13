@@ -273,7 +273,7 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
 
   return (
     <TooltipProvider>
-      <div className={cn("h-full flex", isMobile && selectedEmailId ? "flex-col" : "flex-row")}>
+      <div className={cn("flex flex-row h-screen", isMobile && selectedEmailId ? "flex-col" : "")}>
         <div className={cn(
             "w-full md:w-[320px] lg:w-[380px] shrink-0 border-r bg-background flex flex-col",
             isMobile && selectedEmailId && "hidden"

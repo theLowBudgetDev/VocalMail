@@ -39,7 +39,7 @@ export default function DraftsPageClient() {
     }, [handleReadList]);
 
     return (
-        <div className="h-full flex flex-row">
+        <div className="flex flex-row h-screen">
             <div className={cn(
                 "w-full md:w-[320px] lg:w-[380px] shrink-0 border-r bg-background flex flex-col",
                 isMobile && "hidden" // This logic might need adjustment if drafts are ever implemented
@@ -54,8 +54,8 @@ export default function DraftsPageClient() {
                 </ScrollArea>
             </div>
             <div className={cn(
-                "flex-1 bg-background",
-                isMobile ? "hidden" : "flex flex-col"
+                "flex-1 bg-background flex flex-col",
+                isMobile ? "hidden" : ""
             )}>
                  <div className="flex items-center justify-center h-full text-muted-foreground">
                     Select a draft to view

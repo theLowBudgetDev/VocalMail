@@ -44,7 +44,7 @@ export function UserNav() {
                   <Settings className="h-4 w-4" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-56 mb-2" align="end" side="top">
+              <PopoverContent className="w-52 mb-2" align="end" side="top">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="dark-mode">Dark Mode</Label>
