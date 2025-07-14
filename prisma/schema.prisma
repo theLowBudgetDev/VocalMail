@@ -1,9 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,53 +10,68 @@ datasource db {
   url      = "file:./vocalmail.db"
 }
 
+// User model for authentication and identification
 model User {
-  id              Int       @id @default(autoincrement())
-  email           String    @unique
-  name            String
-  password        String?
-  avatar          String?
-  createdAt       DateTime  @default(now())
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String
+  password  String?
+  avatar    String?
+
   sentEmails      Email[]   @relation("SentEmails")
   receivedEmails  EmailRecipient[]
-  contacts        Contact[] @relation("UserContacts")
-  ownedContacts   Contact[] @relation("OwnerContacts")
+  contacts        Contact[] @relation("Owner")
+  contactOf       Contact[] @relation("ContactUser")
+
+  @@map("users")
 }
 
+// Contact relationship between users
 model Contact {
   ownerId       Int
   contactUserId Int
-  owner         User @relation("OwnerContacts", fields: [ownerId], references: [id])
-  contactUser   User @relation("UserContacts", fields: [contactUserId], references: [id])
+  owner         User @relation("Owner", fields: [ownerId], references: [id], onDelete: Cascade)
+  contactUser   User @relation("ContactUser", fields: [contactUserId], references: [id], onDelete: Cascade)
 
   @@id([ownerId, contactUserId])
+  @@map("contacts")
 }
 
+// Email model containing the core content
 model Email {
-  id          Int      @id @default(autoincrement())
-  senderId    Int
-  sender      User     @relation("SentEmails", fields: [senderId], references: [id])
-  subject     String
-  body        String   @db.Text
-  sentAt      DateTime @default(now())
-  recipients  EmailRecipient[]
-  senderStatus String @default("sent") // e.g., 'sent', 'deleted'
+  id        Int      @id @default(autoincrement())
+  senderId  Int
+  sender    User     @relation("SentEmails", fields: [senderId], references: [id], onDelete: Cascade)
+  subject   String
+  body      String
+  sentAt    DateTime @default(now())
+
+  // Status for the sender (e.g., 'sent' or 'deleted')
+  senderStatus String @default("sent")
+
+  recipients EmailRecipient[]
+
+  @@map("emails")
 }
 
+// Junction table for many-to-many relationship between Email and recipients
 model EmailRecipient {
   emailId     Int
   recipientId Int
   email       Email @relation(fields: [emailId], references: [id], onDelete: Cascade)
-  recipient   User  @relation(fields: [recipientId], references: [id])
+  recipient   User  @relation(fields: [recipientId], references: [id], onDelete: Cascade)
   read        Boolean @default(false)
-  status      String  @default("inbox") // e.g., 'inbox', 'archive', 'deleted'
+  status      String  @default("inbox") // inbox, archive, deleted
 
   @@id([emailId, recipientId])
+  @@map("email_recipients")
 }
 
-
+// Cache for generated TTS audio to reduce API calls
 model AudioCache {
   text          String @id
-  audioDataUri  String @db.Text
+  audioDataUri  String
   createdAt     DateTime @default(now())
+
+  @@map("audio_cache")
 }
