@@ -7,6 +7,7 @@ import { cache } from 'react';
 import { getSession, createSession, deleteSession } from '@/lib/session';
 import bcrypt from 'bcrypt';
 import { redirect } from 'next/navigation';
+import { generateAvatar } from '@/ai/flows/generate-avatar-flow';
 
 const prisma = new PrismaClient();
 
@@ -46,12 +47,14 @@ export async function registerUser(data: { name: string; email: string; password
             return { success: false, error: 'Password is required.' };
         }
 
+        const avatarResult = await generateAvatar({ name: data.name });
+
         await prisma.user.create({
             data: {
                 name: data.name,
                 email: data.email,
                 password: hashedPassword,
-                avatar: `https://placehold.co/40x40.png`,
+                avatar: avatarResult.avatarDataUri,
             },
         });
         return { success: true };
@@ -359,5 +362,3 @@ export async function sendEmail(senderId: number, to: string, subject: string, b
     revalidatePath('/sent');
     revalidatePath('/inbox'); // Also revalidate inbox for the recipient
 }
-
-    

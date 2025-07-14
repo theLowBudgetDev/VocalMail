@@ -35,7 +35,7 @@ export function UserNav() {
   return (
     <div className={cn("w-full flex items-center gap-2 p-2", "group-data-[collapsible=icon]:p-3 group-data-[collapsible=icon]:justify-center")}>
         <Avatar className="h-9 w-9">
-            <AvatarImage src={currentUser.avatar || ''} alt={currentUser.name} data-ai-hint="avatar person" />
+            <AvatarImage src={currentUser.avatar || undefined} alt={currentUser.name} />
             <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
         </Avatar>
         <div className="flex flex-col items-start flex-1 overflow-hidden group-data-[collapsible=icon]:hidden">

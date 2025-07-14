@@ -42,7 +42,7 @@ export default function RegisterPage() {
     } else if (result?.success) {
         toast({ title: 'Registration Successful', description: 'Please log in to continue.'});
         play('Registration successful. Please log in.', () => {
-             window.location.href = '/login';
+             window.location.href = '/login?message=Registration complete! Please sign in.';
         });
     }
   };

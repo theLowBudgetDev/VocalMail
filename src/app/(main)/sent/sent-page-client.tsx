@@ -184,7 +184,7 @@ export default function SentPageClient({ initialEmails, users }: SentPageClientP
                              >
                               <Avatar className="h-10 w-10">
                                   {recipientInfo.avatar ? (
-                                    <AvatarImage src={recipientInfo.avatar} alt={recipientInfo.name} data-ai-hint="avatar person" />
+                                    <AvatarImage src={recipientInfo.avatar} alt={recipientInfo.name} />
                                   ) : (
                                     <Users className="h-full w-full p-2 text-muted-foreground" />
                                   )}
@@ -240,7 +240,7 @@ export default function SentPageClient({ initialEmails, users }: SentPageClientP
                  <div className="flex items-start justify-between gap-4">
                       <div className="flex items-start gap-4">
                           <Avatar className="h-10 w-10">
-                              <AvatarImage src={currentUser?.avatar} alt={currentUser?.name || ''} data-ai-hint="avatar person" />
+                              <AvatarImage src={currentUser?.avatar || undefined} alt={currentUser?.name || ''} />
                               <AvatarFallback>{currentUser?.name.charAt(0)}</AvatarFallback>
                           </Avatar>
                           <div className="grid gap-1">

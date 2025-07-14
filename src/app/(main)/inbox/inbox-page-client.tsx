@@ -294,7 +294,7 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
                           onClick={() => handleSelectEmail(email)}
                          >
                           <Avatar className="h-10 w-10">
-                              <AvatarImage src={getSenderAvatar(email.senderId)} alt={email.senderName} data-ai-hint="avatar person" />
+                              <AvatarImage src={getSenderAvatar(email.senderId)} alt={email.senderName} />
                               <AvatarFallback>{email.senderName.charAt(0)}</AvatarFallback>
                           </Avatar>
                           <div className="flex-1 overflow-hidden grid gap-0.5">
@@ -365,7 +365,7 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
                       <div className="flex items-start gap-4">
                            {senderOfSelectedEmail && (
                               <Avatar className="h-10 w-10">
-                                  <AvatarImage src={senderOfSelectedEmail.avatar} alt={senderOfSelectedEmail.name} data-ai-hint="avatar person" />
+                                  <AvatarImage src={senderOfSelectedEmail.avatar || undefined} alt={senderOfSelectedEmail.name} />
                                   <AvatarFallback>{senderOfSelectedEmail.name.charAt(0)}</AvatarFallback>
                               </Avatar>
                           )}

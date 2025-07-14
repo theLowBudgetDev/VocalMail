@@ -57,7 +57,7 @@ export default function SearchPageClient({ initialResults, initialQuery }: Searc
      React.useEffect(() => {
         const autorun = new URLSearchParams(window.location.search).get('autorun');
         if (autorun === 'read_list' && !initialQuery) {
-            play("Navigated to Search.", handleReadList);
+            play("Navigated to Search. You can say 'search for' followed by your query.", handleReadList);
             router.replace('/search', {scroll: false});
         }
     }, [initialQuery, play, handleReadList, router]);
@@ -118,14 +118,14 @@ export default function SearchPageClient({ initialResults, initialQuery }: Searc
       <div className="p-4 md:p-6">
         <Card>
             <CardHeader>
-                <CardTitle>Search Mail</CardTitle>
+                <CardTitle>Intelligent Search</CardTitle>
                  <CardDescription>
-                    Use the box below to search by sender, subject, or content, or use the global voice command.
+                    Search with natural language. Try "emails from Alice about Project Phoenix" or "Q3 report".
                 </CardDescription>
                 <form onSubmit={handleSearchSubmit} className="flex w-full items-center space-x-2 pt-4">
                     <Input 
                         type="text" 
-                        placeholder="e.g., 'project update' or 'from:Alice'" 
+                        placeholder="Search for emails..." 
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
                         className="max-w-lg"

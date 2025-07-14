@@ -14,51 +14,52 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  name      String
-  password  String
-  avatar    String?
-  sentEmails Email[] @relation("SentEmails")
-  receivedEmails EmailRecipient[] @relation("ReceivedEmails")
-  contacts  Contact[] @relation("Owner")
-  contactOf Contact[] @relation("ContactUser")
-}
-
-model Email {
-  id         Int      @id @default(autoincrement())
-  sender     User     @relation("SentEmails", fields: [senderId], references: [id])
-  senderId   Int
-  subject    String
-  body       String
-  sentAt     DateTime @default(now())
-  senderStatus String  // e.g., 'sent', 'deleted'
-  recipients EmailRecipient[]
-}
-
-model EmailRecipient {
-  email       Email    @relation(fields: [emailId], references: [id])
-  emailId     Int
-  recipient   User     @relation("ReceivedEmails", fields: [recipientId], references: [id])
-  recipientId Int
-  read        Boolean  @default(false)
-  status      String   // e.g., 'inbox', 'archive', 'deleted'
-
-  @@id([emailId, recipientId])
+  id              Int       @id @default(autoincrement())
+  email           String    @unique
+  name            String
+  password        String?
+  avatar          String?
+  createdAt       DateTime  @default(now())
+  sentEmails      Email[]   @relation("SentEmails")
+  receivedEmails  EmailRecipient[]
+  contacts        Contact[] @relation("UserContacts")
+  ownedContacts   Contact[] @relation("OwnerContacts")
 }
 
 model Contact {
-  owner         User @relation("Owner", fields: [ownerId], references: [id])
   ownerId       Int
-  contactUser   User @relation("ContactUser", fields: [contactUserId], references: [id])
   contactUserId Int
+  owner         User @relation("OwnerContacts", fields: [ownerId], references: [id])
+  contactUser   User @relation("UserContacts", fields: [contactUserId], references: [id])
 
   @@id([ownerId, contactUserId])
 }
 
+model Email {
+  id          Int      @id @default(autoincrement())
+  senderId    Int
+  sender      User     @relation("SentEmails", fields: [senderId], references: [id])
+  subject     String
+  body        String   @db.Text
+  sentAt      DateTime @default(now())
+  recipients  EmailRecipient[]
+  senderStatus String @default("sent") // e.g., 'sent', 'deleted'
+}
+
+model EmailRecipient {
+  emailId     Int
+  recipientId Int
+  email       Email @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  recipient   User  @relation(fields: [recipientId], references: [id])
+  read        Boolean @default(false)
+  status      String  @default("inbox") // e.g., 'inbox', 'archive', 'deleted'
+
+  @@id([emailId, recipientId])
+}
+
+
 model AudioCache {
-  id           Int      @id @default(autoincrement())
-  text         String   @unique
-  audioDataUri String
-  createdAt    DateTime @default(now())
+  text          String @id
+  audioDataUri  String @db.Text
+  createdAt     DateTime @default(now())
 }

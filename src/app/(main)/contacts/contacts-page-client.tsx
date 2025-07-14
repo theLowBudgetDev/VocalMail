@@ -219,7 +219,7 @@ export default function ContactsPageClient({ initialContacts }: ContactsPageClie
                     {filteredContacts.map((contact) => (
                         <Card key={contact.id} className="p-4 flex flex-col items-center text-center shadow-md hover:shadow-lg transition-shadow relative group">
                             <Avatar className="h-20 w-20 mb-4">
-                                <AvatarImage src={contact.avatar || ''} alt={contact.name} data-ai-hint="avatar person" />
+                                <AvatarImage src={contact.avatar || undefined} alt={contact.name} />
                                 <AvatarFallback className="text-3xl bg-primary text-primary-foreground">{contact.name.charAt(0)}</AvatarFallback>
                             </Avatar>
                             <p className="font-semibold text-lg">{contact.name}</p>

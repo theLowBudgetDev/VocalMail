@@ -1,8 +1,9 @@
 
-import { getLoggedInUser, searchEmails } from "@/lib/actions";
+import { getLoggedInUser } from "@/lib/actions";
 import SearchPageClient from "./search-page-client";
 import { redirect } from "next/navigation";
 import type { Email } from "@/lib/data";
+import { searchEmailsWithAi } from "@/ai/flows/search-email-flow";
 
 export default async function SearchPage({
   searchParams,
@@ -15,7 +16,11 @@ export default async function SearchPage({
   }
 
   const query = searchParams?.q || '';
-  const searchResults = query ? await searchEmails(currentUser.id, query) : [];
+  let searchResults: Email[] = [];
+  if (query) {
+    const aiResult = await searchEmailsWithAi({ userId: currentUser.id, naturalLanguageQuery: query });
+    searchResults = aiResult.results as Email[];
+  }
 
-  return <SearchPageClient initialResults={searchResults as Email[]} initialQuery={query} />;
+  return <SearchPageClient initialResults={searchResults} initialQuery={query} />;
 }

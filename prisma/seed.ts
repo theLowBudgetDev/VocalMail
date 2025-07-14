@@ -1,17 +1,18 @@
 
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
+import { generateAvatar } from '@/ai/flows/generate-avatar-flow';
 
 const prisma = new PrismaClient();
 
 const usersToSeed = [
-    { name: 'Charlie Davis', email: 'charlie.davis@example.com', avatar: 'https://placehold.co/40x40.png' },
-    { name: 'Alice Williams', email: 'alice.williams@example.com', avatar: 'https://placehold.co/40x40.png' },
-    { name: 'Frank Miller', email: 'frank.miller@example.com', avatar: 'https://placehold.co/40x40.png' },
-    { name: 'Grace Lee', email: 'grace.lee@example.com', avatar: 'https://placehold.co/40x40.png' },
-    { name: 'Bob Johnson', email: 'bob.johnson@example.com', avatar: 'https://placehold.co/40x40.png' },
-    { name: 'Diana Prince', email: 'diana.prince@example.com', avatar: 'https://placehold.co/40x40.png' },
-    { name: 'Eve Adams', email: 'eve.adams@example.com', avatar: 'https://placehold.co/40x40.png' },
+    { name: 'Charlie Davis', email: 'charlie.davis@example.com' },
+    { name: 'Alice Williams', email: 'alice.williams@example.com' },
+    { name: 'Frank Miller', email: 'frank.miller@example.com' },
+    { name: 'Grace Lee', email: 'grace.lee@example.com' },
+    { name: 'Bob Johnson', email: 'bob.johnson@example.com' },
+    { name: 'Diana Prince', email: 'diana.prince@example.com' },
+    { name: 'Eve Adams', email: 'eve.adams@example.com' },
 ];
 
 const emailsToSeed = [
@@ -289,17 +290,23 @@ async function main() {
     const defaultPassword = 'password123';
     const hashedPassword = await bcrypt.hash(defaultPassword, saltRounds);
 
-    // Seed users
-    for (const u of usersToSeed) {
-        await prisma.user.create({
+    // Seed users and generate avatars
+    const userCreationPromises = usersToSeed.map(async (u) => {
+        console.log(`Generating avatar for ${u.name}...`);
+        const avatarResult = await generateAvatar({ name: u.name });
+        console.log(`Avatar generated for ${u.name}.`);
+        return prisma.user.create({
             data: {
                 ...u,
-                password: hashedPassword
+                password: hashedPassword,
+                avatar: avatarResult.avatarDataUri,
             },
         });
-    }
-    console.log('Users seeded.');
+    });
 
+    await Promise.all(userCreationPromises);
+    console.log('Users seeded with AI-generated avatars.');
+    
     const allUsers = await prisma.user.findMany();
     const userMap = new Map(allUsers.map(u => [u.email, u]));
 
@@ -364,5 +371,3 @@ main()
     .finally(async () => {
         await prisma.$disconnect();
     });
-
-    
