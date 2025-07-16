@@ -21,13 +21,13 @@ export const getLoggedInUser = cache(async () => {
         if (!user) {
             // This might happen if the seed script hasn't run or if Charlie is deleted.
             // As a fallback, find any user.
-            return await prisma.user.findFirstOrThrow();
+            return await prisma.user.findFirst();
         }
         return user;
     } catch (error) {
-        console.error("Fatal: No users found in the database. Please run `npm run db:seed`.");
-        // This will cause a hard error, which is appropriate if the DB is empty.
-        throw new Error("No users found in database. Please seed the database.");
+        console.error("Database query failed:", error);
+        // Instead of throwing an error, return null. The UI will handle this.
+        return null;
     }
 });
 

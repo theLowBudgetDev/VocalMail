@@ -25,7 +25,17 @@ export function UserNav() {
     return <Loader2 className="h-6 w-6 animate-spin mx-auto" />
   }
 
-  if (!currentUser) return null;
+  if (!currentUser) {
+    // This can happen if the database is not seeded.
+    return (
+       <div className={cn("w-full flex items-center gap-2 p-2", "group-data-[collapsible=icon]:p-3 group-data-[collapsible=icon]:justify-center")}>
+        <div className="flex flex-col items-start flex-1 overflow-hidden group-data-[collapsible=icon]:hidden">
+            <p className="text-sm font-medium leading-none truncate">No User Found</p>
+            <p className="text-xs leading-none text-muted-foreground truncate">Run `npm run db:seed`</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={cn("w-full flex items-center gap-2 p-2", "group-data-[collapsible=icon]:p-3 group-data-[collapsible=icon]:justify-center")}>
