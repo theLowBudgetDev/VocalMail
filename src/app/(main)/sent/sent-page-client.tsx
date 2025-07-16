@@ -75,7 +75,8 @@ export default function SentPageClient({ initialEmails, users }: SentPageClientP
         play("Navigated to Sent.", handleReadList);
         router.replace('/sent', {scroll: false});
     }
-  }, [searchParams, play, handleReadList, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, play, handleReadList]);
 
 
   React.useEffect(() => {

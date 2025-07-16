@@ -80,7 +80,8 @@ export default function ArchivePageClient({ initialEmails, users }: ArchivePageC
         play("Navigated to Archive.", handleReadList);
         router.replace('/archive', {scroll: false});
     }
-  }, [searchParams, play, handleReadList, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, play, handleReadList]);
 
 
   React.useEffect(() => {

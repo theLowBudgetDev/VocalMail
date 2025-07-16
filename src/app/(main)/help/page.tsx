@@ -96,7 +96,8 @@ export default function HelpPage() {
             play("Navigated to Help.", handleReadList);
             router.replace('/help', { scroll: false });
         }
-    }, [searchParams, play, handleReadList, router]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams, play, handleReadList]);
 
     React.useEffect(() => {
         const handleCommand = (event: CustomEvent) => {

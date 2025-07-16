@@ -24,7 +24,8 @@ export default function DraftsPageClient() {
             play("Navigated to Drafts.", handleReadList);
             router.replace('/drafts', { scroll: false });
         }
-    }, [searchParams, play, handleReadList, router]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams, play, handleReadList]);
     
     // Voice command handler for help
     React.useEffect(() => {

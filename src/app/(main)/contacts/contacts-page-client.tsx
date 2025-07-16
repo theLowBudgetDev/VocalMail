@@ -131,7 +131,8 @@ export default function ContactsPageClient({ initialContacts }: ContactsPageClie
             play("Navigated to Contacts.", handleReadList);
             router.replace('/contacts', {scroll: false});
         }
-    }, [searchParams, play, handleReadList, router]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams, play, handleReadList]);
     
     React.useEffect(() => {
         const handleCommand = (event: CustomEvent) => {

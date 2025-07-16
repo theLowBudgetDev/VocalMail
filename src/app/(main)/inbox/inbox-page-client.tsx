@@ -103,7 +103,8 @@ export default function InboxPageClient({ initialEmails, users }: InboxPageClien
         play("Navigated to Inbox.", handleReadList);
         router.replace('/inbox', {scroll: false});
     }
-  }, [searchParams, play, handleReadList, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, play, handleReadList]);
 
 
   React.useEffect(() => {

@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Search, Trash2 } from "lucide-react";
 import { deleteUserEmail } from "@/lib/actions";
 import type { Email } from "@/lib/data";
@@ -30,6 +30,7 @@ interface SearchPageClientProps {
 
 export default function SearchPageClient({ initialResults, initialQuery }: SearchPageClientProps) {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { currentUser } = useCurrentUser();
     
     const [inputValue, setInputValue] = React.useState(initialQuery);
@@ -55,12 +56,13 @@ export default function SearchPageClient({ initialResults, initialQuery }: Searc
     }, [searchResults, play, initialQuery]);
 
      React.useEffect(() => {
-        const autorun = new URLSearchParams(window.location.search).get('autorun');
+        const autorun = searchParams.get('autorun');
         if (autorun === 'read_list' && !initialQuery) {
             play("Navigated to Search. You can say 'search for' followed by your query.", handleReadList);
             router.replace('/search', {scroll: false});
         }
-    }, [initialQuery, play, handleReadList, router]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [initialQuery, play, handleReadList, searchParams]);
 
 
     const handleSearchSubmit = (event: React.FormEvent) => {
