@@ -25,8 +25,8 @@ export const getLoggedInUser = cache(async () => {
         }
         return user;
     } catch (error) {
-        console.error("Database query failed:", error);
-        // Instead of throwing an error, return null. The UI will handle this.
+        // The database is likely not available or seeded. Return null.
+        // The UI layer is responsible for handling the null user case gracefully.
         return null;
     }
 });
@@ -34,7 +34,12 @@ export const getLoggedInUser = cache(async () => {
 // --- DATA READ ACTIONS ---
 
 export const getUsers = cache(async () => {
-    return prisma.user.findMany();
+    try {
+        return await prisma.user.findMany();
+    } catch (error) {
+        console.error("Database query failed for getUsers:", error);
+        return [];
+    }
 });
 
 function toEmailViewModel(dbEmail: any, userId: number) {
