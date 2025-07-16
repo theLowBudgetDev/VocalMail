@@ -1,9 +1,9 @@
+
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "debian-openssl-3.0.x"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -12,43 +12,60 @@ datasource db {
 }
 
 model User {
-  id        Int       @id @default(autoincrement())
-  email     String    @unique
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
   name      String
-  avatar    String
-  sentEmails Email[]   @relation("SentEmails")
-  receivedEmails EmailRecipient[]
-  contacts  Contact[] @relation("UserContacts")
-  ownedContacts Contact[] @relation("OwnedContacts")
-}
+  password  String
 
-model Contact {
-  ownerId       Int
-  contactUserId Int
-  owner         User @relation("OwnedContacts", fields: [ownerId], references: [id])
-  contactUser   User @relation("UserContacts", fields: [contactUserId], references: [id])
+  sentEmails      Email[]   @relation("SentBy")
+  receivedEmails  EmailRecipient[]
+  contacts        Contact[] @relation("Owner")
+  contactOf       Contact[] @relation("ContactUser")
 
-  @@id([ownerId, contactUserId])
+  @@map("users")
 }
 
 model Email {
-  id          Int      @id @default(autoincrement())
-  senderId    Int
-  sender      User     @relation("SentEmails", fields: [senderId], references: [id])
-  subject     String
-  body        String
-  sentAt      DateTime @default(now())
-  recipients  EmailRecipient[]
-  senderStatus String @default("sent") // sent, deleted
+  id            Int      @id @default(autoincrement())
+  senderId      Int
+  subject       String
+  body          String
+  sentAt        DateTime @default(now())
+  senderStatus  String   // e.g., 'sent', 'deleted'
+
+  sender     User              @relation("SentBy", fields: [senderId], references: [id])
+  recipients EmailRecipient[]
+
+  @@map("emails")
 }
 
 model EmailRecipient {
   emailId     Int
   recipientId Int
-  email       Email    @relation(fields: [emailId], references: [id])
-  recipient   User     @relation(fields: [recipientId], references: [id])
   read        Boolean  @default(false)
-  status      String   @default("inbox") // inbox, archive, deleted
+  status      String   // e.g., 'inbox', 'archive', 'deleted'
+
+  email     Email @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  recipient User  @relation(fields: [recipientId], references: [id], onDelete: Cascade)
 
   @@id([emailId, recipientId])
+  @@map("email_recipients")
+}
+
+model Contact {
+  ownerId       Int
+  contactUserId Int
+
+  owner       User @relation("Owner", fields: [ownerId], references: [id], onDelete: Cascade)
+  contactUser User @relation("ContactUser", fields: [contactUserId], references: [id], onDelete: Cascade)
+
+  @@id([ownerId, contactUserId])
+  @@map("contacts")
+}
+
+model AudioCache {
+  text         String @id
+  audioDataUri String
+
+  @@map("audio_cache")
 }
