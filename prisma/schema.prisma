@@ -1,9 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,53 +11,51 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
   name      String
   password  String?
-
   sentEmails Email[] @relation("SentEmails")
   receivedEmails EmailRecipient[] @relation("ReceivedEmails")
   ownedContacts Contact[] @relation("OwnedContacts")
-  contactIn Contact[] @relation("ContactIn")
+  contactOf Contact[] @relation("ContactOf")
 }
 
 model Email {
-  id        Int      @id @default(autoincrement())
-  senderId  Int
-  subject   String
-  body      String
-  sentAt    DateTime @default(now())
-  senderStatus String  // e.g., 'sent', 'deleted'
-
-  sender    User     @relation("SentEmails", fields: [senderId], references: [id])
-  recipients EmailRecipient[]
+  id             Int      @id @default(autoincrement())
+  sender         User     @relation("SentEmails", fields: [senderId], references: [id])
+  senderId       Int
+  subject        String
+  body           String
+  sentAt         DateTime @default(now())
+  senderStatus   String // e.g., 'sent', 'deleted'
+  recipients     EmailRecipient[]
 }
 
 model EmailRecipient {
-  emailId     Int
-  recipientId Int
-  read        Boolean  @default(false)
-  status      String   // e.g., 'inbox', 'archive', 'deleted'
-
-  email       Email    @relation(fields: [emailId], references: [id], onDelete: Cascade)
-  recipient   User     @relation("ReceivedEmails", fields: [recipientId], references: [id])
+  email        Email    @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  emailId      Int
+  recipient    User     @relation("ReceivedEmails", fields: [recipientId], references: [id], onDelete: Cascade)
+  recipientId  Int
+  read         Boolean  @default(false)
+  status       String   // e.g., 'inbox', 'archive', 'deleted'
 
   @@id([emailId, recipientId])
 }
 
-
 model Contact {
+  owner         User @relation("OwnedContacts", fields: [ownerId], references: [id], onDelete: Cascade)
   ownerId       Int
+  contactUser   User @relation("ContactOf", fields: [contactUserId], references: [id], onDelete: Cascade)
   contactUserId Int
-
-  owner         User @relation("OwnedContacts", fields: [ownerId], references: [id])
-  contactUser   User @relation("ContactIn", fields: [contactUserId], references: [id])
 
   @@id([ownerId, contactUserId])
 }
 
 model AudioCache {
-    text          String @id
-    audioDataUri  String
+  text         String @id
+  audioDataUri String
+  createdAt    DateTime @default(now())
+
+  @@map("audio_cache")
 }
