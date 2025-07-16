@@ -13,7 +13,8 @@ export default async function SearchPage({
   
   const query = searchParams?.q || '';
   let searchResults: Email[] = [];
-  if (query) {
+
+  if (query && currentUser) {
     const aiResult = await searchEmailsWithAi({ userId: currentUser.id, naturalLanguageQuery: query });
     searchResults = aiResult.results as Email[];
   }
