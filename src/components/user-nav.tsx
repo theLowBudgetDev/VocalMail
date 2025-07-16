@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { useTheme } from "next-themes";
-import { HelpCircle, Loader2, Settings, LogOut } from "lucide-react";
+import { HelpCircle, Loader2, Settings } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,6 @@ import { Switch } from "@/components/ui/switch";
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { cn } from "@/lib/utils";
 import { Label } from "./ui/label";
-import { logoutUser } from "@/lib/actions";
 
 export function UserNav() {
   const { currentUser, isLoading } = useCurrentUser();
@@ -28,14 +27,10 @@ export function UserNav() {
 
   if (!currentUser) return null;
 
-  const handleLogout = async () => {
-    await logoutUser();
-  }
-
   return (
     <div className={cn("w-full flex items-center gap-2 p-2", "group-data-[collapsible=icon]:p-3 group-data-[collapsible=icon]:justify-center")}>
         <Avatar className="h-9 w-9">
-            <AvatarImage src={currentUser.avatar || undefined} alt={currentUser.name} />
+            <AvatarImage src={undefined} alt={currentUser.name} />
             <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
         </Avatar>
         <div className="flex flex-col items-start flex-1 overflow-hidden group-data-[collapsible=icon]:hidden">
@@ -64,10 +59,6 @@ export function UserNav() {
                       <HelpCircle className="mr-2 h-4 w-4" />
                       Help
                     </Link>
-                  </Button>
-                  <Button variant="destructive" className="w-full" onClick={handleLogout}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Logout
                   </Button>
                 </div>
               </PopoverContent>

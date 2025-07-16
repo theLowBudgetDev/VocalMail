@@ -4,81 +4,30 @@
 import { revalidatePath } from 'next/cache';
 import { PrismaClient } from '@prisma/client';
 import { cache } from 'react';
-import { getSession, createSession, deleteSession } from '@/lib/session';
 import bcrypt from 'bcrypt';
 import { redirect } from 'next/navigation';
 
 const prisma = new PrismaClient();
 
-// --- AUTH ACTIONS ---
-
-export async function loginUser(data: { email: string; password?: string }) {
-    try {
-        const user = await prisma.user.findUnique({ where: { email: data.email } });
-        if (!user || !user.password) {
-            return { success: false, error: 'Invalid email or password.' };
-        }
-        if (data.password) {
-            const isPasswordValid = await bcrypt.compare(data.password, user.password);
-            if (!isPasswordValid) {
-                return { success: false, error: 'Invalid email or password.' };
-            }
-        } else {
-            return { success: false, error: 'Password is required.' };
-        }
-
-        await createSession(user.id);
-        return { success: true };
-    } catch (error) {
-        return { success: false, error: 'An unexpected server error occurred.' };
-    }
-}
-
-export async function registerUser(data: { name: string; email: string; password?: string }) {
-    try {
-        const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
-        if (existingUser) {
-            return { success: false, error: 'An account with this email already exists.' };
-        }
-
-        const hashedPassword = data.password ? await bcrypt.hash(data.password, 10) : null;
-        if (!hashedPassword) {
-            return { success: false, error: 'Password is required.' };
-        }
-
-        await prisma.user.create({
-            data: {
-                name: data.name,
-                email: data.email,
-                password: hashedPassword,
-            },
-        });
-        return { success: true };
-    } catch (error) {
-        console.error(error);
-        return { success: false, error: 'An unexpected error occurred during registration.' };
-    }
-}
-
-
-export async function logoutUser() {
-    await deleteSession();
-    redirect('/login');
-}
-
+// --- AUTH ACTIONS (MOCKED) ---
 
 export const getLoggedInUser = cache(async () => {
-    const session = await getSession();
-    if (!session?.userId) {
-        return null;
-    }
+    // In this authentication-free version, we always return a default user.
+    // We'll use Charlie Davis, who is one of the seeded users.
     try {
-        const user = await prisma.user.findUnique({
-            where: { id: session.userId },
+        const user = await prisma.user.findFirst({
+            where: { email: 'charlie.davis@example.com' },
         });
+        if (!user) {
+            // This might happen if the seed script hasn't run or if Charlie is deleted.
+            // As a fallback, find any user.
+            return await prisma.user.findFirstOrThrow();
+        }
         return user;
     } catch (error) {
-        return null;
+        console.error("Fatal: No users found in the database. Please run `npm run db:seed`.");
+        // This will cause a hard error, which is appropriate if the DB is empty.
+        throw new Error("No users found in database. Please seed the database.");
     }
 });
 

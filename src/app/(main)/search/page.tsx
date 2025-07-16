@@ -1,7 +1,6 @@
 
 import { getLoggedInUser } from "@/lib/actions";
 import SearchPageClient from "./search-page-client";
-import { redirect } from "next/navigation";
 import type { Email } from "@/lib/data";
 import { searchEmailsWithAi } from "@/ai/flows/search-email-flow";
 
@@ -11,10 +10,7 @@ export default async function SearchPage({
   searchParams?: { q?: string };
 }) {
   const currentUser = await getLoggedInUser();
-  if (!currentUser) {
-    redirect('/login?error=Session expired.');
-  }
-
+  
   const query = searchParams?.q || '';
   let searchResults: Email[] = [];
   if (query) {

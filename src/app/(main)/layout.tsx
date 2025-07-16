@@ -1,7 +1,6 @@
 
 import { getLoggedInUser } from "@/lib/actions";
 import VocalMailLayoutClient from "./layout-client";
-import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 
@@ -31,12 +30,11 @@ export default function VocalMailLayout({
 async function VocalMailLayoutWithData({ children }: { children: React.ReactNode }) {
   const currentUser = await getLoggedInUser();
 
-  if (!currentUser) {
-    redirect("/login");
-  }
+  // In this auth-free version, currentUser should always exist if DB is seeded.
+  // If not, an error will be thrown by getLoggedInUser, which is desired.
 
   return (
-      <VocalMailLayoutClient currentUser={currentUser}>
+      <VocalMailLayoutClient currentUser={currentUser!}>
         {children}
       </VocalMailLayoutClient>
   );
