@@ -1,0 +1,169 @@
+
+You are an expert AI software engineer. Your task is to create a complete, production-ready web application based on the following detailed requirements.
+
+---
+## **Project Brief: VocalMail**
+---
+
+### **1. High-Level Concept**
+
+**App Name:** VocalMail
+
+**Core Mission:** A web-based email client specifically designed for visually impaired users. The primary interface is voice. The application must be fully accessible, with a high-contrast, minimalist UI. Users should be able to perform all major email and contact management tasks using only voice commands.
+
+**Technology Stack:**
+- **Framework:** Next.js (App Router)
+- **Language:** TypeScript
+- **UI Components:** ShadCN UI
+- **Styling:** Tailwind CSS
+- **Database ORM:** Prisma
+- **Database:** SQLite (for local development)
+- **Authentication:** Email/password-based with JWT sessions stored in HTTP-only cookies. Use `bcrypt` for password hashing.
+- **Generative AI:** Google AI via Genkit
+
+---
+### **2. Core Features & Functionality**
+---
+
+**a. Voice-First Interaction:**
+- The application must be controllable via voice commands.
+- Use the browser's `MediaRecorder` API to capture audio.
+- A global microphone button (except on the compose page) should be available for issuing commands. Press-and-hold (or spacebar) to record.
+- The compose page should have its own dedicated mic button to distinguish between commands and dictation.
+
+**b. Email Management:**
+- **Folders:** Implement Inbox, Sent, and Archive views.
+- **Actions:** Users must be able to perform the following actions via voice on a selected email:
+  - Read email content aloud.
+  - Delete email.
+  - Archive email (from Inbox).
+  - Unarchive email (from Archive).
+  - Reply to email.
+- **AI Features:**
+  - **Email Summarization:** Generate a concise summary of an email's content.
+  - **Smart Reply Suggestions:** Generate 3 contextual reply suggestions for an open email.
+  - **Text-to-Speech (TTS):** Convert all on-screen text and email content to audible speech. Cache audio to avoid re-generation.
+
+**c. Composition:**
+- A dedicated `/compose` page with fields for "To", "Subject", and "Body".
+- **Voice Dictation:** Allow users to dictate content for each field. The AI should intelligently format the input (e.g., convert "at" and "dot" to symbols for email addresses).
+- **Voice-based Field Switching:** Allow commands like "focus subject" or "go to body".
+- **Proofreading:** A "proofread" command that reads the entire draft back to the user.
+- **Corrections:** A "make a correction" command that allows re-dictating a specific field.
+
+**d. Contact Management:**
+- A dedicated `/contacts` page displaying all of the user's contacts.
+- **Actions:** Allow users to add, search, and delete contacts via voice commands.
+- **Emailing Contacts:** A command to "email [contact name]" which navigates to the compose page with the recipient's email pre-filled.
+
+**e. Global Search:**
+- A dedicated `/search` page.
+- The search must be intelligent, understanding natural language queries (e.g., "emails from Frank about the new campaign"). This requires an AI flow that can parse the query and search the database effectively.
+
+**f. User Authentication:**
+- **Registration Page:** Allow new users to sign up with a name, email, and password.
+- **Login Page:** Allow existing users to sign in.
+- **Session Management:** Use JWTs stored in secure, HTTP-only cookies to manage user sessions.
+- Implement middleware to protect routes, redirecting unauthenticated users to the login page.
+
+---
+### **3. UI/UX & Style Guidelines**
+---
+
+- **Primary Color:** Deep blue (`#3F51B5`) - HSL: `231 48% 48%`
+- **Background Color:** Very light grey (`#F0F0F3`) - HSL: `240 8% 96%`
+- **Accent Color:** Teal (`#008080`) for interactive elements - HSL: `180 100% 25%`
+- **Dark Mode Background:** A near-black grey (`#212121`) - HSL: `0 0% 13%`
+- **Font:** 'Inter' (sans-serif) for all text.
+- **Layout:**
+  - High-contrast and minimalist.
+  - A persistent sidebar for navigation (Inbox, Sent, etc.). The sidebar should be collapsible.
+  - For list/detail views (like Inbox), use a two-pane layout: a list on the left and the selected item's content on the right.
+  - The layout must be responsive and adapt gracefully to mobile screens.
+
+---
+### **4. Database Schema (Prisma)**
+---
+
+Define the following models in `prisma/schema.prisma` for a SQLite provider:
+
+1.  **`User`**:
+    - `id` (Int, primary key)
+    - `email` (String, unique)
+    - `name` (String)
+    - `password` (String)
+    - Relationships: one-to-many with `Email` (as sender), `EmailRecipient`, and `Contact` (as owner).
+
+2.  **`Email`**:
+    - `id` (Int, primary key)
+    - `senderId` (Int, foreign key to `User`)
+    - `subject` (String)
+    - `body` (String)
+    - `sentAt` (DateTime)
+    - `senderStatus` (String, e.g., 'sent', 'deleted')
+    - Relationships: many-to-one with `User` (sender), one-to-many with `EmailRecipient`.
+
+3.  **`EmailRecipient`**: (Join table for recipients)
+    - `emailId` (Int)
+    - `recipientId` (Int)
+    - `read` (Boolean)
+    - `status` (String, e.g., 'inbox', 'archive', 'deleted')
+    - Primary Key: `@@id([emailId, recipientId])`
+    - Relationships: many-to-one with `Email` and `User`.
+
+4.  **`Contact`**: (Join table for contacts)
+    - `ownerId` (Int)
+    - `contactUserId` (Int)
+    - Primary Key: `@@id([ownerId, contactUserId])`
+    - Relationships: many-to-one with `User` (as owner and as contactUser).
+
+5.  **`AudioCache`**:
+    - `text` (String, primary key)
+    - `audioDataUri` (String)
+    - `@@map("audio_cache")` to ensure table name consistency.
+
+---
+### **5. AI Implementation (Genkit)**
+---
+
+Create the following Genkit flows:
+
+1.  **`recognizeCommand`**:
+    - Input: Audio data URI and current page path.
+    - Output: A structured command (e.g., `navigate_inbox`, `action_read_email`), transcription, and any extracted parameters (like email index or contact name).
+    - Logic: Must be context-aware. On the compose page, it should differentiate between dictation and commands.
+
+2.  **`voiceToTextConversion`**:
+    - Input: Audio data URI and context ('to', 'subject', 'body').
+    - Output: Cleaned-up text transcription.
+    - Logic: Formats the text based on the context (e.g., creates a valid email address for the 'to' field).
+
+3.  **`textToSpeechConversion`**:
+    - Input: Text string.
+    - Output: Base64 encoded WAV audio data URI.
+    - Logic: Must first check the `AudioCache` table. If a cache entry exists, return it. Otherwise, call the TTS model, return the result, and save it to the cache.
+
+4.  **`summarizeEmail`**:
+    - Input: Email body text.
+    - Output: A concise summary string.
+
+5.  **`generateReplySuggestions`**:
+    - Input: Email body text.
+    - Output: An array of 3 short, relevant reply suggestions.
+
+6.  **`searchEmailsWithAi`**:
+    - Input: User ID and natural language query.
+    - Output: An array of matching email objects.
+    - Logic: Must use a Genkit Tool (`searchEmailsTool`) that the LLM can call. The tool itself will perform a full-text search on the database based on a `searchTerm` formulated by the LLM from the natural language query.
+
+---
+### **6. Seeding Script**
+---
+
+Create a `prisma/seed.ts` script to populate the database with a realistic set of mock data:
+- At least 5-7 `User` records.
+- At least 20 `Email` records distributed between the users (inbox, sent, archive).
+- `Contact` records making every user a contact of every other user.
+- Ensure the password for all seeded users is a known default (e.g., 'password123').
+
+The script must first clear all existing data from the tables before seeding to ensure a clean state.
