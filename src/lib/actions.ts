@@ -7,7 +7,6 @@ import { cache } from 'react';
 import { getSession, createSession, deleteSession } from '@/lib/session';
 import bcrypt from 'bcrypt';
 import { redirect } from 'next/navigation';
-import { generateAvatar } from '@/ai/flows/generate-avatar-flow';
 
 const prisma = new PrismaClient();
 
@@ -47,14 +46,11 @@ export async function registerUser(data: { name: string; email: string; password
             return { success: false, error: 'Password is required.' };
         }
 
-        const avatarResult = await generateAvatar({ name: data.name });
-
         await prisma.user.create({
             data: {
                 name: data.name,
                 email: data.email,
                 password: hashedPassword,
-                avatar: avatarResult.avatarDataUri,
             },
         });
         return { success: true };
@@ -251,7 +247,7 @@ export async function getContacts(userId: number) {
         orderBy: { contactUser: { name: 'asc' } },
     });
 
-    return contacts.map(c => ({...c.contactUser, avatar: c.contactUser.avatar || ''}));
+    return contacts.map(c => ({...c.contactUser}));
 }
 
 // --- DATA WRITE ACTIONS ---

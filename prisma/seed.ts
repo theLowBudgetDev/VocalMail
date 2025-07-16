@@ -1,7 +1,6 @@
 
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
-import { generateAvatar } from '@/ai/flows/generate-avatar-flow';
 
 const prisma = new PrismaClient();
 
@@ -290,22 +289,16 @@ async function main() {
     const defaultPassword = 'password123';
     const hashedPassword = await bcrypt.hash(defaultPassword, saltRounds);
 
-    // Seed users and generate avatars
-    const userCreationPromises = usersToSeed.map(async (u) => {
-        console.log(`Generating avatar for ${u.name}...`);
-        const avatarResult = await generateAvatar({ name: u.name });
-        console.log(`Avatar generated for ${u.name}.`);
-        return prisma.user.create({
+    // Seed users
+    for (const u of usersToSeed) {
+        await prisma.user.create({
             data: {
                 ...u,
                 password: hashedPassword,
-                avatar: avatarResult.avatarDataUri,
             },
         });
-    });
-
-    await Promise.all(userCreationPromises);
-    console.log('Users seeded with AI-generated avatars.');
+    }
+    console.log('Users seeded.');
     
     const allUsers = await prisma.user.findMany();
     const userMap = new Map(allUsers.map(u => [u.email, u]));
