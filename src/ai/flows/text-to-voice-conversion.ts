@@ -70,13 +70,18 @@ const textToSpeechFlow = ai.defineFlow(
     const trimmedText = input.text.trim();
 
     // 1. Check cache first
-    const cachedAudio = await prisma.audioCache.findUnique({
-        where: { text: trimmedText },
-    });
+    try {
+        const cachedAudio = await prisma.audioCache.findUnique({
+            where: { text: trimmedText },
+        });
 
-    if (cachedAudio) {
-        return { media: cachedAudio.audioDataUri };
+        if (cachedAudio) {
+            return { media: cachedAudio.audioDataUri };
+        }
+    } catch (e) {
+        console.error("Audio cache lookup failed, proceeding to generate.", e);
     }
+    
 
     // 2. If not in cache, generate new audio
     const {media} = await ai.generate({
@@ -108,12 +113,18 @@ const textToSpeechFlow = ai.defineFlow(
     const audioDataUri = 'data:audio/wav;base64,' + wavBase64;
 
     // 3. Save the newly generated audio to the cache
-    await prisma.audioCache.create({
-        data: {
-            text: trimmedText,
-            audioDataUri: audioDataUri,
-        },
-    });
+    try {
+        await prisma.audioCache.create({
+            data: {
+                text: trimmedText,
+                audioDataUri: audioDataUri,
+            },
+        });
+    } catch (e) {
+        // This can fail if another process generated and cached the audio in parallel.
+        // It's safe to ignore this error.
+        console.error("Audio cache write failed (likely due to a race condition), ignoring.", e);
+    }
 
     return { media: audioDataUri };
   }
