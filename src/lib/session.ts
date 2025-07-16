@@ -30,11 +30,13 @@ export async function createSession(userId: number) {
   const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 1 day
   const session = await encrypt({ userId, expires });
 
-  cookies().set('session', session, { expires, httpOnly: true, secure: process.env.NODE_ENV === 'production' });
+  const cookieStore = await cookies();
+  cookieStore.set('session', session, { expires, httpOnly: true, secure: process.env.NODE_ENV === 'production' });
 }
 
 export async function getSession() {
-  const sessionCookie = cookies().get('session')?.value;
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get('session')?.value;
   if (!sessionCookie) return null;
 
   const session = await decrypt(sessionCookie);
@@ -49,5 +51,6 @@ export async function getSession() {
 }
 
 export async function deleteSession() {
-  cookies().set('session', '', { expires: new Date(0) });
+  const cookieStore = await cookies();
+  cookieStore.set('session', '', { expires: new Date(0) });
 }

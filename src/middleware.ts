@@ -1,6 +1,6 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { getSession } from '@/lib/session';
+import { getSession, deleteSession } from '@/lib/session';
 
 const protectedRoutes = ['/', '/inbox', '/sent', '/archive', '/contacts', '/compose', '/search', '/drafts', '/help'];
 const publicRoutes = ['/login', '/register'];
