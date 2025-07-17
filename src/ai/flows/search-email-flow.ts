@@ -75,13 +75,14 @@ const searchEmailFlow = ai.defineFlow(
 
     // The tool output will be in the llmResponse.
     // We find the output from the tool call and return it.
-    const toolOutput = llmResponse.toolOutput<z.infer<typeof searchEmailsTool.outputSchema>>();
+    const toolOutput = llmResponse.toolOutput;
     
     if (toolOutput) {
-        return { results: toolOutput };
+        return { results: toolOutput as Email[] };
     }
     
     // If the tool wasn't called for some reason, return empty results.
     return { results: [] };
   }
 );
+
