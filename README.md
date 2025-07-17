@@ -11,11 +11,11 @@ VocalMail is a final year project that re-imagines the email experience for visu
 - **Full Contact Management:** Add, search, delete, and initiate emails to your contacts, all through voice commands.
 - **Global Email Search:** Find any email, no matter which folder it's in, by searching for content in its subject or body using a voice command.
 - **Text-to-Speech & Caching:** All on-screen text and email content can be read aloud. Responses are cached to provide a snappy user experience and reduce API usage.
-- **Mock User Authentication:** A simple, mock-user authentication system for easy demonstration and testing.
+- **Simplified Mock User System:** The application runs as a single, pre-seeded user ("Charlie Davis") to allow for easy demonstration and testing without any login or registration required.
 
-## User Authentication
+## Simplified User Experience
 
-VocalMail uses a simple, mock-user authentication system. On the login page, you can select which of the five pre-seeded users you would like to log in as. This allows for easy testing of a multi-user environment without the need for registration or password management. Your session is remembered in a browser cookie, and you can switch between users from the profile icon in the top-right corner.
+VocalMail now uses a simplified, authentication-free system. The application automatically runs as a default mock user, "Charlie Davis". This allows you to start using the app immediately without the need for registration or login. The session is managed automatically, and all data is tied to this default user.
 
 ## Technology Stack
 
@@ -51,6 +51,13 @@ VocalMail uses a simple, mock-user authentication system. On the login page, you
     GOOGLE_API_KEY=your_google_ai_api_key_here
     ```
 
+4.  **Set up the database:**
+    To create and seed your local database, run the following commands in order:
+    ```bash
+    npx prisma migrate dev --name init
+    npm run db:seed
+    ```
+
 ### Running the Application
 
 You need to run two processes in separate terminals: the Next.js frontend server and the Genkit AI server.
@@ -66,9 +73,7 @@ You need to run two processes in separate terminals: the Next.js frontend server
     npm run dev
     ```
 
-### Logging In
-
-Once the application is running, it will open to `http://localhost:9002`. You will be directed to a login page where you can select one of the mock users (e.g., Charlie Davis, Alice Williams) to begin using the application.
+The application will open to `http://localhost:3000` and take you directly to the inbox for the default user.
 
 ## How It Works
 
